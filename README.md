@@ -450,20 +450,5 @@ TRAFFIC_API_KEY=<your-api-key>
 - [ ] Payment gateway integration (UPI)
 - [ ] Comprehensive test suite
 
-## Contributing
 
-This is a production-ready starter template. Feel free to extend and customize based on your requirements.
-
-## License
-
-MIT License - Free to use and modify
-
-## Support
-
-For questions or issues:
-- Backend: See `backend/README.md`
-- Frontend: Check React Native/Expo docs
-- Database: Refer to `backend/database/schema.sql`
-
----
 
