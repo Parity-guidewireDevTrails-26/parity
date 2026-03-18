@@ -1,4 +1,4 @@
-# Kavach: Phase 2 Architecture Deep-Dive
+# parity: Phase 2 Architecture Deep-Dive
 
 This document answers the core architectural and implementation questions for the "Unicorn-tier" Kavach Parametric Insurance Platform.
 
