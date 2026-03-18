@@ -7,7 +7,7 @@ A production-ready insurance platform for India's gig economy delivery partners,
 ## Project Structure
 
 ```
-kavach/
+parity/
 ├── backend/                 # Golang microservices
 │   ├── services/
 │   │   ├── api-gateway/    # Entry point (Port 8080)
