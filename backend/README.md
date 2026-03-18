@@ -1,4 +1,4 @@
-# Kavach Backend - Golang Microservices
+# parity Backend - Golang Microservices
 
 A production-ready microservices architecture for the Kavach insurance platform, built with Golang for high-performance parametric insurance processing.
 
