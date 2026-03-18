@@ -1,6 +1,8 @@
-# Kavach - AI-Parametric Insurance Platform
+# Parity - AI-Parametric Insurance Platform
 
 A production-ready insurance platform for India's gig economy delivery partners, featuring parametric triggers, fraud detection, and instant payouts.
+<img width="998" height="497" alt="image" src="https://github.com/user-attachments/assets/9598a6eb-f518-4057-a49f-4913d3579e4c" />
+
 
 ## Project Structure
 
