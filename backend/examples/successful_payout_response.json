@@ -1,0 +1,101 @@
+{
+  "status": "success",
+  "message": "Event processed and claims created",
+  "event_id": "550e8400-e29b-41d4-a716-446655440000",
+  "event_details": {
+    "event_type": "rainfall",
+    "zone": "Malviya Nagar",
+    "severity": 45.5,
+    "threshold": 40.0,
+    "triggered_at": "2024-03-18T14:30:00Z"
+  },
+  "claims_summary": {
+    "total_affected_users": 12,
+    "claims_created": 10,
+    "claims_rejected": 2,
+    "total_payout": 4280.00
+  },
+  "sample_claims": [
+    {
+      "claim_id": "660e8400-e29b-41d4-a716-446655440001",
+      "user_id": "770e8400-e29b-41d4-a716-446655440002",
+      "user_name": "Raj Kumar",
+      "policy_type": "Gold",
+      "coverage_limit": 3500.00,
+      "estimated_income_loss": 420.00,
+      "payout_amount": 420.00,
+      "payout_formula": "min(420.00, 3500.00) = 420.00",
+      "fraud_score": 0.0,
+      "status": "paid",
+      "verification": {
+        "gps_verified": true,
+        "device_verified": true,
+        "crowdsource_verified": true
+      },
+      "disruption_period": {
+        "start": "2024-03-18T14:30:00Z",
+        "end": "2024-03-18T16:45:00Z",
+        "duration_hours": 2.25
+      },
+      "income_calculation": {
+        "avg_hourly_rate": 186.67,
+        "disruption_hours": 2.25,
+        "estimated_loss": 420.00
+      },
+      "payout_details": {
+        "method": "UPI",
+        "processed_at": "2024-03-18T16:47:23Z",
+        "transaction_id": "PAY_550e8400e29b41d4"
+      }
+    },
+    {
+      "claim_id": "660e8400-e29b-41d4-a716-446655440003",
+      "user_id": "770e8400-e29b-41d4-a716-446655440004",
+      "user_name": "Amit Sharma",
+      "policy_type": "Platinum",
+      "coverage_limit": 7000.00,
+      "estimated_income_loss": 680.00,
+      "payout_amount": 680.00,
+      "payout_formula": "min(680.00, 7000.00) = 680.00",
+      "fraud_score": 0.1,
+      "status": "paid",
+      "verification": {
+        "gps_verified": true,
+        "device_verified": true,
+        "crowdsource_verified": true
+      },
+      "disruption_period": {
+        "start": "2024-03-18T14:30:00Z",
+        "end": "2024-03-18T17:00:00Z",
+        "duration_hours": 2.5
+      },
+      "income_calculation": {
+        "avg_hourly_rate": 272.00,
+        "disruption_hours": 2.5,
+        "estimated_loss": 680.00
+      },
+      "payout_details": {
+        "method": "UPI",
+        "processed_at": "2024-03-18T16:47:25Z",
+        "transaction_id": "PAY_660e8400e29b41d4"
+      }
+    }
+  ],
+  "rejected_claims": [
+    {
+      "claim_id": "660e8400-e29b-41d4-a716-446655440005",
+      "user_id": "770e8400-e29b-41d4-a716-446655440006",
+      "rejection_reason": "High fraud score detected",
+      "fraud_score": 0.8,
+      "fraud_details": {
+        "gps_verified": false,
+        "device_verified": true,
+        "crowdsource_verified": false,
+        "issues": [
+          "GPS location mismatch with event zone",
+          "Single claim in zone (no clustering)"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "event_id": "ev_01HQ7ZX",
+  "trigger_type": "social_disruption",
+  "zone": "Saket Market, Delhi",
+  "status": "pending_verification",
+  "initiator": {
+    "user_id": "usr_942A",
+    "reported_at": "2026-03-18T10:15:00Z",
+    "description": "Police barricades due to Section 144, totally blocked."
+  },
+  "crowdsource_polling": {
+    "radius_km": 3.0,
+    "riders_pinged": 12,
+    "responses_received": 8,
+    "confirmations": 6,
+    "denials": 2,
+    "confirmation_ratio": 0.75,
+    "threshold_required": 0.60
+  },
+  "external_validation": {
+    "news_api_crosscheck": "active_protest_detected",
+    "traffic_api_speed": "0 km/h"
+  },
+  "verification_status": "APPROVED",
+  "resolved_at": "2026-03-18T10:25:00Z"
+}

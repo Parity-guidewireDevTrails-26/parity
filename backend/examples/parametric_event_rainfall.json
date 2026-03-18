@@ -1,0 +1,17 @@
+{
+  "event_type": "rainfall",
+  "zone": "Malviya Nagar",
+  "severity": 45.5,
+  "threshold": 40.0,
+  "probability_score": 0.92,
+  "triggered_at": "2024-03-18T14:30:00Z",
+  "is_active": true,
+  "metadata": {
+    "source": "weather_api",
+    "station": "Delhi Central",
+    "measurement_unit": "mm",
+    "duration_hours": 2,
+    "intensity": "heavy",
+    "forecast_continuation": true
+  }
+}

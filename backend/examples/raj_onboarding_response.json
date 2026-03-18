@@ -1,0 +1,34 @@
+{
+  "user": {
+    "uuid": "usr_902D_raj_delhi",
+    "phone": "+91 98765 43210",
+    "name": "Raj Kumar",
+    "platform": "Swiggy",
+    "device_id": "SEC_HANDSHAKE_VALID_1XA9",
+    "trust_score": 0.94,
+    "expected_income": 4900,
+    "zone_cluster_id": "ZONE_DELHI_08_SAKET",
+    "risk_profile": {
+      "level": "High",
+      "surcharge": 55,
+      "factors": ["Flood-Prone", "High Traffic Density"]
+    }
+  },
+  "verification": {
+    "user_id": "usr_902D_raj_delhi",
+    "screenshot_url": "mock_ocr_upload_week41.jpg",
+    "ocr_confidence_score": 0.98,
+    "is_active_rider": true,
+    "deliveries_per_hour": 3.2,
+    "total_weekly_pay": 5100,
+    "ocr_status": "PASSED"
+  },
+  "policy": {
+    "policy_id": "pol_UNF491",
+    "user_id": "usr_902D_raj_delhi",
+    "tier": "PLATINUM",
+    "weekly_premium_total": 170,  
+    "coverage_limit": 5500,
+    "cooling_off_until": "2026-04-01T00:00:00Z"
+  }
+}
