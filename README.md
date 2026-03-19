@@ -69,9 +69,12 @@ Watch how Parity works in real-time:
 ## Screenshots
 
 <div align="center">
-  <img src="https://via.placeholder.com/250x500.png?text=Dashboard+Screen" alt="Dashboard" width="250" />
-  <img src="https://via.placeholder.com/250x500.png?text=Policy+Selection" alt="Policy Selection" width="250" />
-  <img src="https://via.placeholder.com/250x500.png?text=Claim+Success" alt="Claim Success" width="250" />
+
+
+<img width="763" height="1600" alt="image" src="https://github.com/user-attachments/assets/e20f6960-b857-403b-884d-c844c7ef92c7" />
+ <img width="764" height="1600" alt="image" src="https://github.com/user-attachments/assets/e87bedc2-2f48-4a17-b3ce-ad2dae5fa48b" />
+ <img width="763" height="1600" alt="image" src="https://github.com/user-attachments/assets/f65bf14a-fdfa-4121-8a0e-01c002635abd" />
+
 </div>
 
 ## Architecture Overview
