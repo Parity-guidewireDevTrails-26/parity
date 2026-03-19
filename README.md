@@ -4,18 +4,18 @@ A production-ready insurance platform for India's gig economy delivery partners,
 
 <img width="998" height="497" alt="image" src="https://github.com/user-attachments/assets/9598a6eb-f518-4057-a49f-4913d3579e4c" />
 
-## 🚀 What is Parity?
+##  What is Parity?
 
 Parity is a parametric insurance platform that automatically compensates gig workers when real-world disruptions (rain, traffic, pollution) reduce their earning ability.
 
-⚡ No claims filing  
-⚡ No paperwork  
-⚡ Instant payouts triggered by real-world data  
+ No claims filing  
+ No paperwork  
+ Instant payouts triggered by real-world data  
 
 **Example:**  
 Rainfall > 40mm → System detects disruption → ₹280 credited automatically
 
-## ❗ Problem
+## Problem
 
 Gig workers lose income due to:
 - Sudden rain
@@ -28,9 +28,10 @@ Gig workers lose income due to:
 
 Even 2–3 hours of disruption = significant daily loss
 
-<img width="100%" alt="The Algorithmic Income Gap" src="assets/algorithmic-income-gap.png" />
+<img width="1085" height="419" alt="image" src="https://github.com/user-attachments/assets/c59894ce-7075-4af4-81b9-7dcb4223cc7a" />
 
-## 🧠 Why Parametric Insurance?
+
+##  Why Parametric Insurance?
 
 Traditional insurance:
 - Requires manual claims
@@ -42,7 +43,7 @@ Parity:
 - Automates claim validation
 - Pays instantly without user action
 
-## 🏆 What Makes Parity Different?
+##  What Makes Parity Different?
 
 - Zero-touch payouts (no claim filing)
 - Real-time trigger detection
@@ -50,7 +51,7 @@ Parity:
 - Built specifically for gig economy workflows
 - Micro-pricing (weekly, affordable)
 
-## 🎬 Example Flow
+##  Example Flow
 
 1. Raj starts his delivery shift
 2. Heavy rainfall begins (48mm)
@@ -61,12 +62,12 @@ Parity:
 
 No action required from Raj.
 
-## 🎥 Demo
+##  Demo
 
 Watch how Parity works in real-time:
 [Demo Video Link]
 
-## 📱 Screenshots
+##  Screenshots
 
 <div align="center">
   <img src="https://via.placeholder.com/250x500.png?text=Dashboard+Screen" alt="Dashboard" width="250" />
@@ -290,7 +291,7 @@ payout = min(estimated_loss, coverage_limit)
 | Gold     | ₹85/wk  | ₹3,500   | Comprehensive coverage      |
 | Platinum | ₹150/wk | ₹7,000   | Premium with max protection |
 
-## 📘 API Standards
+##  API Standards
 
 - RESTful design
 - JSON responses
@@ -539,7 +540,7 @@ WEATHER_API_KEY=<your-api-key>
 TRAFFIC_API_KEY=<your-api-key>
 ```
 
-## 🌍 Future Vision
+##  Future Vision
 
 - Expand to all gig platforms (Uber, Zepto, Blinkit)
 - Dynamic pricing based on risk zones
