@@ -50,16 +50,16 @@ Parity:
 - Built specifically for gig economy workflows
 - Micro-pricing (weekly, affordable)
 
-## Example Flow
+## Example Flow (Zero-Touch Execution)
 
-1. Raj starts his delivery shift
-2. Heavy rainfall begins (48mm)
-3. System detects event in his zone
-4. Raj’s activity is verified (GPS + cluster)
-5. Estimated loss: ₹280
-6. ₹280 credited instantly
+1. **The Disruption:** Raj is delivering in Saket (Zone DEL-SAKET-01). Sudden, severe rainfall hits, logging 55mm sustained over 45 minutes.
+2. **Parametric Trigger:** The Weather API detects the threshold breach (`> 40mm`). The Claim Processing Service automatically queues affected riders logged within that specific 3km polygon using PostGIS geo-fencing.
+3. **The Private API Handshake:** Parity executes a sub-second ping to the gig platform using Raj’s OAuth token: *"Was Raj logged in and active in Saket?"* (Returns: `True`).
+4. **Intelligent Fraud Gatekeeper:** The system runs real-time multi-layer checks: Device integrity is solid, IP matches GPS, and 45 other riders are experiencing identical delays (Crowdsource Confidence). Fraud Score = 0.
+5. **Income Prediction:** The XGBoost model calculates Raj's expected income loss based on his historical delivery velocity vs. the 45-minute delay.
+6. **Instant Resolution:** ₹280 is computed and automatically credited to Raj's account wallet with an immediate push notification.
 
-No action required from Raj.
+No manual claim. No paperwork. Just a seamless safety net.
 
 ## Demo
 
