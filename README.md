@@ -4,13 +4,13 @@ A production-ready insurance platform for India's gig economy delivery partners,
 
 <img width="998" height="497" alt="image" src="https://github.com/user-attachments/assets/9598a6eb-f518-4057-a49f-4913d3579e4c" />
 
-##  What is Parity?
+## What is Parity?
 
 Parity is a parametric insurance platform that automatically compensates gig workers when real-world disruptions (rain, traffic, pollution) reduce their earning ability.
 
- No claims filing  
- No paperwork  
- Instant payouts triggered by real-world data  
+- No claims filing  
+- No paperwork  
+- Instant payouts triggered by real-world data  
 
 **Example:**  
 Rainfall > 40mm → System detects disruption → ₹280 credited automatically
@@ -22,16 +22,15 @@ Gig workers lose income due to:
 - Traffic collapse
 - Extreme heat
 
-❌ No compensation  
-❌ No safety net  
-❌ No predictable income  
+- No compensation  
+- No safety net  
+- No predictable income  
 
 Even 2–3 hours of disruption = significant daily loss
 
 <img width="1085" height="419" alt="image" src="https://github.com/user-attachments/assets/c59894ce-7075-4af4-81b9-7dcb4223cc7a" />
 
-
-##  Why Parametric Insurance?
+## Why Parametric Insurance?
 
 Traditional insurance:
 - Requires manual claims
@@ -43,7 +42,7 @@ Parity:
 - Automates claim validation
 - Pays instantly without user action
 
-##  What Makes Parity Different?
+## What Makes Parity Different?
 
 - Zero-touch payouts (no claim filing)
 - Real-time trigger detection
@@ -51,7 +50,7 @@ Parity:
 - Built specifically for gig economy workflows
 - Micro-pricing (weekly, affordable)
 
-##  Example Flow
+## Example Flow
 
 1. Raj starts his delivery shift
 2. Heavy rainfall begins (48mm)
@@ -62,117 +61,18 @@ Parity:
 
 No action required from Raj.
 
-##  Demo
+## Demo
 
 Watch how Parity works in real-time:
 [Demo Video Link]
 
-##  Screenshots
+## Screenshots
 
 <div align="center">
   <img src="https://via.placeholder.com/250x500.png?text=Dashboard+Screen" alt="Dashboard" width="250" />
   <img src="https://via.placeholder.com/250x500.png?text=Policy+Selection" alt="Policy Selection" width="250" />
   <img src="https://via.placeholder.com/250x500.png?text=Claim+Success" alt="Claim Success" width="250" />
 </div>
-
-## Project Structure
-
-```text
-parity/
-├── backend/                 # Golang microservices
-│   ├── services/
-│   │   ├── api-gateway/    # Entry point (Port 8080)
-│   │   ├── user-service/   # User management (Port 8081)
-│   │   ├── policy-service/ # Policy management (Port 8082)
-│   │   └── claim-service/  # Claim processing (Port 8083)
-│   ├── pkg/
-│   │   ├── database/       # PostgreSQL & Redis
-│   │   ├── middleware/     # Auth & Rate limiting
-│   │   └── models/         # Data models
-│   ├── database/           # SQL schema
-│   └── examples/           # Sample JSON responses
-│
-├── app/                    # React Native (Expo)
-│   ├── (auth)/            # Login & Register
-│   ├── (tabs)/            # Main app screens
-│   │   ├── index.tsx      # Dashboard
-│   │   ├── policies.tsx   # Policy selection
-│   │   ├── claims.tsx     # Claims history
-│   │   └── profile.tsx    # User profile
-│   └── _layout.tsx
-│
-├── services/              # API service layer
-└── types/                 # TypeScript definitions
-```
-
-## Quick Start
-
-### Prerequisites
-
-- **Backend:**
-  - Go 1.21+
-  - PostgreSQL 14+
-  - Redis 7+
-
-- **Frontend:**
-  - Node.js 18+
-  - npm or yarn
-  - Expo CLI
-
-### 1. Backend Setup
-
-```bash
-cd backend
-
-# Copy environment file
-cp .env.example .env
-
-# Edit .env with your configuration
-nano .env
-
-# Create database
-createdb parity_db
-
-# Run schema migration
-psql -U parity -d parity_db -f database/schema.sql
-
-# Install Go dependencies
-go mod download
-
-# Start API Gateway
-cd services/api-gateway && go run main.go &
-
-# Start User Service
-cd services/user-service && go run main.go &
-
-# Start Policy Service
-cd services/policy-service && go run main.go &
-
-# Start Claim Service
-cd services/claim-service && go run main.go claim_processor.go &
-```
-
-### 2. Frontend Setup
-
-```bash
-# Install dependencies
-npm install
-
-# Copy environment file
-cp .env.example .env
-
-# Edit .env
-nano .env
-
-# Start Expo development server
-npm run dev
-```
-
-### 3. Access the Application
-
-- **API Gateway:** http://localhost:8080
-- **Mobile App:** Scan QR code from Expo Dev Tools
-- **API Health:** http://localhost:8080/health
 
 ## Architecture Overview
 
@@ -232,66 +132,174 @@ npm run dev
                        └─> Send Notification
 ```
 
-## Key Features
+## Project Structure
 
-### 1. Parametric Triggers
-
-Automatic claim triggering based on real-world conditions:
-
-- **Rainfall:** > 40mm (Flooding risk)
-- **Air Quality:** AQI > 500 (Breathing hazard)
-- **Traffic:** Speed < 10 km/h (Mobility collapse)
-- **Temperature:** > 45°C (Heat wave)
-
-### 2. Hybrid Parametric Model
-
-- **Auto-triggers:** Weather, traffic, pollution events
-- **Manual claims:** User-submitted with crowdsourced validation
-- **Zero-touch payouts:** No paperwork required
-
-### 3. Fraud Detection
-
-Multi-layered verification:
-
-1. **GPS Matching:** User location vs. event zone
-2. **Device Integrity:** Root/jailbreak detection
-3. **Claim Clustering:** Cross-validation with other riders
-
-Fraud Score Calculation:
-```python
-fraud_score = 0.0
-if gps_mismatch: fraud_score += 0.5
-if device_compromised: fraud_score += 0.3
-if claim_clustering (3+ users): fraud_score -= 0.2
-
-reject_threshold = 0.7
+```text
+parity/
+├── backend/                 # Golang microservices
+│   ├── services/
+│   │   ├── api-gateway/    # Entry point
+│   │   ├── user-service/   # User management
+│   │   ├── policy-service/ # Policy management
+│   │   └── claim-service/  # Claim processing
+│   ├── pkg/                # Shared packages
+│   └── database/           # SQL schema
+│
+├── app/                    # React Native (Expo)
+│   ├── (auth)/             # Login & Register
+│   └── (tabs)/             # Main app screens
+│
+├── Tie_up/                 # Machine Learning & Core Models
+│   ├── data/               # Synthetic datasets
+│   ├── models/             # Trained XGBoost models
+│   ├── predictor/          # Income loss prediction algorithms
+│   ├── insurance/          # Risk, premium, fraud & payout logic
+│   ├── generate_dataset.py # Data generation pipeline
+│   ├── income.py           # Income calculation
+│   └── train.py            # Model training script
 ```
 
-### 4. Income Loss Calculation
+## Quick Start
 
-```go
-// Step 1: Calculate average hourly rate
-avg_hourly_rate = AVG(total_earnings / hours_worked) over last 30 days
+### Prerequisites
 
-// Step 2: Determine disruption duration
-disruption_hours = min(actual_hours, 8) // Cap at 8 hours
+- **Backend:** Go 1.21+, PostgreSQL 14+, Redis 7+
+- **Frontend:** Node.js 18+, npm or yarn, Expo CLI
+- **ML/Models:** Python 3.9+, XGBoost, Pandas, Scikit-learn
 
-// Step 3: Estimate loss
-estimated_loss = avg_hourly_rate × disruption_hours
+### 1. Backend Setup
 
-// Step 4: Apply coverage limit
-payout = min(estimated_loss, coverage_limit)
+```bash
+cd backend
+cp .env.example .env
+
+# Create database and run migrations
+createdb parity_db
+psql -U parity -d parity_db -f database/schema.sql
+
+# Install dependencies and start services
+go mod download
+go run services/api-gateway/main.go &
+go run services/user-service/main.go &
+go run services/policy-service/main.go &
+go run services/claim-service/main.go &
 ```
 
-### 5. Weekly Pricing Model
+### 2. Frontend Setup
 
-| Plan     | Premium | Coverage | Features                    |
-|----------|---------|----------|-----------------------------|
-| Silver   | ₹45/wk  | ₹1,500   | Basic protection            |
-| Gold     | ₹85/wk  | ₹3,500   | Comprehensive coverage      |
-| Platinum | ₹150/wk | ₹7,000   | Premium with max protection |
+```bash
+# Install dependencies
+npm install
 
-##  API Standards
+# Start Expo development server
+npm run dev
+```
+
+## Core Models & Machine Learning
+
+### Solution Architecture
+The system follows a modular pipeline:
+1. Synthetic data generation based on realistic delivery ecosystem parameters.
+2. Machine learning model training to predict income loss.
+3. Risk scoring using environmental and operational indicators.
+4. Fraud detection through rule-based anomaly identification.
+5. Premium calculation using income, risk, and plan-based adjustments.
+6. Claim triggering based on predefined environmental thresholds.
+7. Payout computation with deductibles, coverage limits, and fraud filtering.
+8. Portfolio-level performance analysis.
+
+### Dataset Description
+The dataset is synthetically generated to reflect realistic delivery conditions and includes:
+
+| Feature | Description |
+|---------|-------------|
+| `hours_per_day` | Working hours per day |
+| `orders_per_hour` | Delivery throughput |
+| `days_per_week` | Weekly work frequency |
+| `earnings_per_order` | Earnings per delivery |
+| `rainfall_mm` | Rainfall intensity |
+| `restaurant_density` | Availability of nearby orders |
+| `peak_hour_ratio` | Fraction of work during peak hours |
+| `platform_demand_index` | Platform demand indicator |
+| `surge_multiplier` | Surge pricing factor |
+| `aqi` | Air Quality Index |
+| `temperature` | Ambient temperature |
+| `expected_income` | Ideal income under normal conditions |
+| `actual_income` | Realized income |
+| `income_loss` | Difference between expected and actual income |
+
+### Machine Learning Model
+- **Model:** XGBoost Regressor
+- **Objective:** Predict income loss based on rider and environmental features
+- **Input:** Structured tabular data
+- **Output:** Continuous income loss value
+
+The model captures non-linear relationships between environmental conditions and earning potential.
+
+### Risk Scoring
+Risk is computed as a normalized score in the range `[0, 1]`, based on:
+- Rainfall intensity
+- AQI levels
+- Temperature extremes (Delhi-calibrated thresholds)
+- Platform demand index
+- Restaurant density
+- Peak hour engagement
+
+The scoring function is designed to reflect localized environmental realities, particularly in high-variance urban settings.
+
+### Premium Selection & Calculation
+Each rider is assigned a plan option (Silver, Gold, Platinum):
+
+| Plan | Coverage | Loading | Notes |
+|------|----------|---------|-------|
+| Silver | 50% | Low | Baseline protection |
+| Gold | 50% | Medium | Baseline protection with additional benefits |
+| Platinum | 55% | High | Higher coverage, controlled insurer exposure |
+
+Premium depends on:
+1. Expected weekly income
+2. Coverage level (based on plan)
+3. Risk score (non-linear scaling)
+4. Plan loading
+
+**Formula:**
+- `Base Premium = Expected Weekly Income × Coverage`
+- `Risk Multiplier = 1 + (Risk ^ 1.5)`
+- `Premium = Base Premium × Risk Multiplier × Plan Loading`
+
+### Fraud Detection
+A rule-based fraud detection system flags suspicious claims:
+- High loss under low-risk conditions
+- High claims without environmental triggers
+- Extreme loss ratios relative to expected income
+- Risk-loss inconsistencies
+
+**Key Checks:**
+1. **Rainfall vs Income Loss:** If rainfall is `< 20 mm` but predicted loss is very high.
+2. **AQI vs Claim Behavior:** If AQI `< 150` but rider reports high loss.
+3. **Temperature-Based Validation:** Flagged if temp is normal `(20–38°C)` but loss is exceptionally high.
+4. **Loss-to-Income Ratio Check:** 
+   - `loss > 50%` of expected under normal conditions is suspicious.
+   - `loss > 90%` of expected is highly suspicious regardless of conditions.
+5. **Risk vs Loss Mismatch:** Low risk score coupled with high predicted loss.
+
+**Fraud Scoring:**
+- Mild inconsistency → `+1`
+- Strong inconsistency → `+2`
+- **Final decision:** Fraud if `score >= 3`
+
+### Claim Trigger & Payout Logic
+Claims are only valid if external disruption conditions are met (e.g., Rainfall `> 70 mm`, AQI `> 300`, Temp `> 42°C` or `< 10°C`).
+
+**Payout Calculation:**
+1. **Check Fraud:** If fraud detected, `Payout = 0`.
+2. **Check Trigger:** If no environmental trigger, `Payout = 0`.
+3. **Apply Threshold:** Small losses are ignored. `Minimum Loss Threshold = 10% of expected income`.
+4. **Apply Deductible:** Rider bears first portion. `Deductible = 10% of expected income`.
+5. **Apply Coverage Limit:** Based on plan (50% or 55%).
+6. **Final Payout Formula:** `Payout = min(Coverage Limit, Predicted Loss - Deductible)`
+
+## API Standards
 
 - RESTful design
 - JSON responses
@@ -324,43 +332,6 @@ Content-Type: application/json
   "phone_number": "+919876543210",
   "password": "securepassword"
 }
-
-Response:
-{
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "user": { ... }
-}
-```
-
-### Policy Management
-
-**Get Available Policies**
-```http
-GET /api/v1/policies
-
-Response:
-{
-  "policies": [
-    {
-      "id": "uuid",
-      "name": "Gold",
-      "weekly_premium": 85.00,
-      "coverage_limit": 3500.00,
-      "description": "Comprehensive coverage for regular riders"
-    }
-  ]
-}
-```
-
-**Subscribe to Policy**
-```http
-POST /api/v1/policies/subscribe
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "policy_id": "uuid"
-}
 ```
 
 ### Claim Processing
@@ -376,186 +347,34 @@ Content-Type: application/json
   "zone": "Malviya Nagar",
   "severity": 45.5,
   "threshold": 40.0,
-  "probability_score": 0.92,
-  "triggered_at": "2024-03-18T14:30:00Z",
-  "is_active": true
-}
-```
-
-**Get User Claims**
-```http
-GET /api/v1/claims/user/:user_id
-Authorization: Bearer <token>
-
-Response:
-{
-  "claims": [
-    {
-      "id": "uuid",
-      "claim_type": "auto",
-      "status": "paid",
-      "estimated_income_loss": 420.00,
-      "payout_amount": 420.00,
-      "disruption_start": "2024-03-18T14:30:00Z",
-      "disruption_end": "2024-03-18T16:45:00Z"
-    }
-  ]
+  "triggered_at": "2024-03-18T14:30:00Z"
 }
 ```
 
 ## Testing
+Test the parametric event flow locally by triggering an auto-claim using curl or postman targeting `http://localhost:8080/api/v1/events/trigger`.
 
-### Test Parametric Event Flow
-
-```bash
-# 1. Register a user
-curl -X POST http://localhost:8080/api/v1/auth/register \
-  -H "Content-Type: application/json" \
-  -d @backend/examples/register_user.json
-
-# 2. Subscribe to a policy
-TOKEN="<your_jwt_token>"
-curl -X POST http://localhost:8080/api/v1/policies/subscribe \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"policy_id": "<policy_uuid>"}'
-
-# 3. Update work zone
-curl -X PUT http://localhost:8080/api/v1/users/profile \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"work_zone": "Malviya Nagar"}'
-
-# 4. Trigger parametric event
-curl -X POST http://localhost:8080/api/v1/events/trigger \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d @backend/examples/parametric_event_rainfall.json
-
-# 5. Check claims
-curl http://localhost:8080/api/v1/claims/user/<user_id> \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-## Mobile App Screens
-
-### 1. Dashboard
-- Earnings protection meter
-- Active policy details
-- Zone security status
-- Quick stats
-
-### 2. Policy Selection
-- Compare plans (Silver, Gold, Platinum)
-- One-tap subscription
-- Weekly pricing model
-- Feature breakdown
-
-### 3. Claims History
-- Auto-triggered claims
-- Payout details
-- Disruption timeline
-- Status tracking
-
-### 4. Profile
-- Account information
-- Work zone setup
-- Platform details
-- Logout
-
-## Design System
-
-### Color Palette
-
-- **Deep Navy:** `#0A1929` (Background, Trust)
-- **Electric Blue:** `#4FC3F7` (Tech, Accent)
-- **Safety Orange:** `#FF6B35` (CTA, Visibility)
-- **Success Green:** `#4CAF50` (Verified, Positive)
-- **Warning Yellow:** `#FFC107` (Pending, Caution)
-- **Error Red:** `#F44336` (Rejected, Alert)
-
-### Typography
-
-- **Headings:** 700 weight, 120% line-height
-- **Body:** 400-600 weight, 150% line-height
-- **Labels:** 14px, 600 weight
-
-## 📡 Observability
-
+## Observability
 - Structured logging across services
 - Request tracing via API Gateway
 - Health checks for all microservices
 - Metrics-ready architecture (Prometheus compatible)
 
-## 🔐 Security
-
+## Security
 - JWT-based authentication
 - Rate limiting at API Gateway
 - Input validation across services
 - Fraud detection scoring system
 - Secure environment variable handling
 
-## 📈 Scalability
-
+## Scalability
 - Stateless microservices
 - Horizontal scaling supported
 - Event-driven architecture (future Kafka integration)
 - Redis caching for high-throughput reads
 
-## Production Deployment
-
-### Docker Setup
-
-```bash
-# Build images
-docker-compose build
-
-# Start services
-docker-compose up -d
-
-# Check logs
-docker-compose logs -f
-```
-
-### Environment Variables (Production)
-
-```env
-# Database
-DB_HOST=your-db-host.rds.amazonaws.com
-DB_PORT=5432
-DB_USER=parity
-DB_PASSWORD=<secure-password>
-DB_NAME=parity_production
-
-# Redis
-REDIS_HOST=your-redis-host.cache.amazonaws.com
-REDIS_PORT=6379
-
-# JWT
-JWT_SECRET=<generate-secure-random-string>
-JWT_EXPIRY=24h
-
-# External APIs
-WEATHER_API_KEY=<your-api-key>
-TRAFFIC_API_KEY=<your-api-key>
-```
-
-##  Future Vision
-
+## Future Vision
 - Expand to all gig platforms (Uber, Zepto, Blinkit)
 - Dynamic pricing based on risk zones
 - AI-based disruption prediction
 - Embedded insurance APIs for platforms
-
-## Roadmap
-
-- [ ] External API integrations (Weather, Traffic)
-- [ ] Message queue for async processing (Kafka)
-- [ ] AI risk prediction models
-- [ ] Real-time notification service
-- [ ] Admin dashboard for monitoring
-- [ ] Analytics and reporting
-- [ ] Multi-language support
-- [ ] KYC verification flow
-- [ ] Payment gateway integration (UPI)
-- [ ] Comprehensive test suite
