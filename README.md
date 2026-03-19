@@ -99,6 +99,13 @@ Watch the zero-touch execution in action:
 ![React Native](https://img.shields.io/badge/react_native-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB)
 ![Expo](https://img.shields.io/badge/expo-1B1F23?style=for-the-badge&logo=expo&logoColor=white)
 
+#### Why This Stack?
+- **Golang (Backend):** Chosen for its superior concurrency model (Goroutines). Essential for polling thousands of hyper-local weather/traffic APIs in parallel for real-time monitoring.
+- **PostgreSQL + PostGIS:** Provides industrial-grade ACID compliance for financial integrity, with PostGIS enabling the precise 3-5 km geospatial geo-fencing required for parametric triggers.
+- **Redis:** Acts as a high-speed volatile cache for "Active Session" tokens and live disruption flags, enabling sub-second "Zero-Touch" payout validation.
+- **XGBoost (Python):** Utilized for its high-performance gradient boosting capabilities, accurately predicting non-linear income loss by processing complex environmental and behavioral delivery metadata.
+- **React Native + Expo:** Ensures a high-performance, cross-platform mobile experience with rapid iteration cycles, critical for reaching gig workers on diverse hardware.
+
 ### Data Flow - Parametric Event Processing
 
 ```text
