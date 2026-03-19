@@ -107,7 +107,9 @@ Watch how Parity works in real-time:
 ```
 
 ### Microservice Data Schemas
-To design a robust, "Unicorn-tier" system using a Golang backend, the database schema goes beyond basic fields to include metadata for Advanced Fraud Detection, Parametric Trigger history, and Private API Handshakes.
+
+<img width="1106" height="357" alt="image" src="https://github.com/user-attachments/assets/f62adac2-bec8-43c7-a962-c14e529f4638" />
+
 
 #### 1. User Service Schema (Identity & Trust)
 Stores the "Trust Baseline" for every rider to prevent GPS spoofing and identity fraud.
