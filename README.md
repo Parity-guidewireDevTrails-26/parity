@@ -72,13 +72,6 @@ Parity:
 
 No manual claim. No paperwork. Just a seamless safety net.
 
-#### Execution Model
-```text
-Weather API Trigger ---> Go Backend (Geo-Fencing) ---> XGBoost (Loss Prediction) ---> Instant Payout (Wallet)
-       |                        |                            |                          |
-[Event Detection]       [Rider Validation]           [Quantifying Impact]        [Zero-Touch Credit]
-```
-
 Watch the zero-touch execution in action:
 
 <img src="https://github.com/user-attachments/assets/fed89684-2e9b-437b-941c-3df8d6467389" width="300" alt="Parity Zero-Touch Demo" />
