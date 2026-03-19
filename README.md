@@ -132,6 +132,86 @@ Watch how Parity works in real-time:
                        └─> Send Notification
 ```
 
+### Microservice Data Schemas
+To design a robust, "Unicorn-tier" system using a Golang backend, the database schema goes beyond basic fields to include metadata for Advanced Fraud Detection, Parametric Trigger history, and Private API Handshakes.
+
+#### 1. User Service Schema (Identity & Trust)
+Stores the "Trust Baseline" for every rider to prevent GPS spoofing and identity fraud.
+- `User_ID` (UUID): Primary Key.
+- `Platform_Partner_ID` (String): Foreign key linking to the gig company (Zomato/Swiggy) for the Private API Tie-up.
+- `Verification_Token` (Hashed): Digital signature from the gig platform verifying "Active Session" status.
+- `Device_Fingerprint` (JSON): Stores hardware UUID, OS version, and Root/Jailbreak status.
+- `Trust_Score` (Float): Dynamic value (0.0–1.0) updated nightly based on historical claim honesty.
+- `Zone_Cluster_ID` (String): Maps the rider to a specific 3–5 km delivery zone for aggregate risk calculation.
+- `Historical_Income_Profile` (JSON): Rolling 8-week average of deliveries/hour and avg weekly earnings (Expected Income baseline).
+
+#### 2. Policy Service Schema (Dynamic Coverage)
+Handles the weekly pricing model and the "cooling-off" period for plan upgrades.
+- `Policy_ID` (UUID): Primary Key.
+- `Plan_Tier` (Enum): SILVER, GOLD, PLATINUM.
+- `Base_Premium` (Decimal): The standard weekly cost (e.g., ₹60, ₹85, ₹115).
+- `Risk_Surcharge` (Decimal): Dynamic add-on based on location risks (e.g., +₹55 for flood zones).
+- `Coverage_Multiplier` (Float): 0.50 (Silver/Gold) or 0.55 (Platinum).
+- `Effective_Date` / `Expiry_Date`: Strictly defined as a 7-day window.
+- `Upgrade_Lock_Until` (Timestamp): Ensures new coverage upgrades activate after a 2-week cooling-off period.
+
+#### 3. Claim Processing Schema (Automated Payout Engine)
+Critical schema for Parametric Automation connecting real-time triggers to financial loss.
+- `Claim_ID` (UUID): Primary Key.
+- `Trigger_Type` (Enum): WEATHER, AQI, TRAFFIC, SOCIAL_DISRUPTION.
+- `Parametric_Metric_Value` (Float): Actual API value hitting the trigger (e.g., "Rainfall: 45mm").
+- `Fraud_Score_Metadata` (JSON): Breakdown of the Fraud Scoring Model (e.g., gps_mismatch_score, movement_consistency).
+- `Crowdsource_Confidence` (Int): Count of other riders in the same zone reporting the disruption.
+- `Calculated_Loss` (Decimal): `min(coverage_limit, estimated_income_loss)`.
+- `Payout_Status` (Enum): INITIATED, VERIFIED, PAID, FLAGGED_FOR_FRAUD.
+
+#### 4. Notification Service Schema (Engagement & Alerts)
+Ensures transparency and fulfills the "Earnings Protected" dashboard metric.
+- `Notification_ID` (UUID): Primary Key.
+- `Alert_Category` (Enum): EARLY_WARNING, CLAIM_TRIGGERED, PAYOUT_SUCCESS, FRAUD_WARNING.
+- `Delivery_Status` (Boolean): Verifies the rider received early warnings.
+- `Poll_Response` (Boolean/Nullable): Stores feedback for poll-based validation ("Is Saket Market blocked?").
+
+#### Technical Best Practices for Schema Robustness
+- **ACID Compliance:** PostgreSQL used for User and Policy services to ensure financial records are never corrupted.
+- **High-Speed Caching:** Redis used for Claim Processing to store "Live Triggers" and "Active Session" tokens for sub-second zero-touch payout validation.
+- **Audit Logging:** Every state change in `Claim_ID` is logged with timestamps to pass regulatory/compliance checks.
+
+### Trigger Rules & Disruption Monitoring (Indian Conditions)
+To account for hyper-local environmental factors and unpredictable social disruptions (e.g., severe monsoons, extreme Delhi heat), the system utilizes a robust disruption monitoring system for 3–5 km zones.
+
+#### 1. Trigger Rule Definition (The Logic)
+Thresholds sensitive to Indian metropolitan intensity.
+- `Rule_ID` (UUID): Primary Key.
+- `Trigger_Type` (Enum): HEAVY_RAIN, AQI_HAZARD, HEAT_WAVE, MOBILITY_COLLAPSE, SOCIAL_STRIKE.
+- **Thresholds:**
+  - Rainfall: `> 40mm` (Flooding proxy)
+  - AQI: `> 500` (Severe pollution hazard)
+  - Traffic Speed: `< 10 km/h` (Mobility collapse)
+  - Temperature: `> 45°C` (Dangerous heat)
+- `Sustain_Period` (Minutes): Required breach duration (e.g., 30 mins) before triggering a claim, avoiding false positives.
+- `Indian_Context_Weight` (Float): Multiplier based on historical zone data (e.g., higher weight for waterlogging-prone zones).
+
+#### 2. Disruption Event Schema (The Live State)
+Tracks active disruptions and feeds data directly into the Income Loss Predictor.
+- `Event_ID` (UUID): Primary Key.
+- `Zone_Cluster_ID` (String): Delivery hub mapping (e.g., "DEL-SAKET-01").
+- `Active_Metric_Value` (Float): Real-time external API reading.
+- `Crowdsource_Verification_Count` (Int): Tally of manual hazard reports.
+- `Source_Reliability_Score` (Float): Cross-references APIs against local news or rider crowdsourcing.
+- `Probability_of_Disruption` (Float): 0.0–1.0 output driving the Fraud Detection layer.
+
+#### 3. Zone-Specific Risk Meta (The Indian Condition Layer)
+Provides deep geographic nuance.
+- `Zone_Flood_History` (Boolean): Flags zones prone to "Sudden Waterlogging".
+- `Market_Type` (Enum): `HIGH_ORDER_DENSITY` vs. `RESIDENTIAL`. Helps gauge income loss severity.
+- `Social_Sensitivity_Index` (Float): Rating for areas prone to curfews or sudden strikes (Section 144), prompting proactive tracking.
+
+#### Implementation Best Practices (Golang)
+- **Concurrency (Goroutines):** Poll weather and traffic data across thousands of zones in parallel.
+- **Real-time Handshake:** Emit events via a message queue (Kafka/BullMQ) to Claim Processing for zero-touch payouts.
+- **Geo-Fencing:** Use PostGIS within PostgreSQL to strictly define 3-5 km polygons, ensuring unaffected zones don't incorrectly trigger payouts.
+
 ## Project Structure
 
 ```text
