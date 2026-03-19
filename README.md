@@ -286,6 +286,8 @@ The dataset is synthetically generated to reflect realistic delivery conditions 
 - **Input:** Structured tabular data
 - **Output:** Continuous income loss value
 
+<img width="100%" alt="Feature Impact Analysis" src="assets/models/impact_plots.png" />
+
 The model captures non-linear relationships between environmental conditions and earning potential.
 
 ### Risk Scoring
@@ -321,7 +323,9 @@ Premium depends on:
 
 ### Advanced Fraud Detection
 To build a "Unicorn-tier" platform, the Intelligent Fraud Detection system acts as a multi-layer "Gatekeeper" to ensure that only honest riders receive payouts, protecting the platform's capital during massive weather events.
-<img width="1054" height="563" alt="image" src="https://github.com/user-attachments/assets/d673ce21-22d9-4ae8-91b0-5f68f3a85739" />
+<img width="100%" alt="Fraud Detection Gatekeeper Architecture" src="https://github.com/user-attachments/assets/d673ce21-22d9-4ae8-91b0-5f68f3a85739" />
+
+<img width="100%" alt="Fraud Detection: High Loss vs Low Risk Analysis" src="assets/models/fraud_detection_plot.png" />
 
 
 #### Layer 1: The Device & Identity Layer (Pre-Claim Validation)
@@ -374,6 +378,8 @@ Indicators are fed into a weighted model:
 
 ### Claim Trigger & Payout Logic
 Claims are only valid if external disruption conditions are met (e.g., Rainfall `> 70 mm`, AQI `> 300`, Temp `> 42°C` or `< 10°C`).
+
+<img width="100%" alt="Rider Income Loss Insurance Simulation" src="assets/models/simulation_metrics.png" />
 
 **Payout Calculation:**
 1. **Check Fraud:** If fraud detected, `Payout = 0`.
