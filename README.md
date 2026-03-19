@@ -1,12 +1,80 @@
 # Parity - AI-Parametric Insurance Platform
 
 A production-ready insurance platform for India's gig economy delivery partners, featuring parametric triggers, fraud detection, and instant payouts.
+
 <img width="998" height="497" alt="image" src="https://github.com/user-attachments/assets/9598a6eb-f518-4057-a49f-4913d3579e4c" />
 
+## 🚀 What is Parity?
+
+Parity is a parametric insurance platform that automatically compensates gig workers when real-world disruptions (rain, traffic, pollution) reduce their earning ability.
+
+⚡ No claims filing  
+⚡ No paperwork  
+⚡ Instant payouts triggered by real-world data  
+
+**Example:**  
+Rainfall > 40mm → System detects disruption → ₹280 credited automatically
+
+## ❗ Problem
+
+Gig workers lose income due to:
+- Sudden rain
+- Traffic collapse
+- Extreme heat
+
+❌ No compensation  
+❌ No safety net  
+❌ No predictable income  
+
+Even 2–3 hours of disruption = significant daily loss
+
+## 🧠 Why Parametric Insurance?
+
+Traditional insurance:
+- Requires manual claims
+- Slow payouts
+- High fraud risk
+
+Parity:
+- Uses real-world data triggers
+- Automates claim validation
+- Pays instantly without user action
+
+## 🏆 What Makes Parity Different?
+
+- Zero-touch payouts (no claim filing)
+- Real-time trigger detection
+- Fraud-resistant via multi-signal validation
+- Built specifically for gig economy workflows
+- Micro-pricing (weekly, affordable)
+
+## 🎬 Example Flow
+
+1. Raj starts his delivery shift
+2. Heavy rainfall begins (48mm)
+3. System detects event in his zone
+4. Raj’s activity is verified (GPS + cluster)
+5. Estimated loss: ₹280
+6. ₹280 credited instantly
+
+No action required from Raj.
+
+## 🎥 Demo
+
+Watch how Parity works in real-time:
+[Demo Video Link]
+
+## 📱 Screenshots
+
+<div align="center">
+  <img src="https://via.placeholder.com/250x500.png?text=Dashboard+Screen" alt="Dashboard" width="250" />
+  <img src="https://via.placeholder.com/250x500.png?text=Policy+Selection" alt="Policy Selection" width="250" />
+  <img src="https://via.placeholder.com/250x500.png?text=Claim+Success" alt="Claim Success" width="250" />
+</div>
 
 ## Project Structure
 
-```
+```text
 parity/
 ├── backend/                 # Golang microservices
 │   ├── services/
@@ -60,10 +128,10 @@ cp .env.example .env
 nano .env
 
 # Create database
-createdb kavach_db
+createdb parity_db
 
 # Run schema migration
-psql -U kavach -d kavach_db -f database/schema.sql
+psql -U parity -d parity_db -f database/schema.sql
 
 # Install Go dependencies
 go mod download
@@ -107,7 +175,7 @@ npm run dev
 
 ### Backend Microservices
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │                      Client Apps                        │
 │              (React Native, Web, Mobile)                │
@@ -136,7 +204,7 @@ npm run dev
 
 ### Data Flow - Parametric Event Processing
 
-```
+```text
 1. External API Trigger
    └─> Parametric Event (Rainfall > 40mm)
        └─> Claim Service receives event
@@ -185,7 +253,7 @@ Multi-layered verification:
 3. **Claim Clustering:** Cross-validation with other riders
 
 Fraud Score Calculation:
-```
+```python
 fraud_score = 0.0
 if gps_mismatch: fraud_score += 0.5
 if device_compromised: fraud_score += 0.3
@@ -218,12 +286,18 @@ payout = min(estimated_loss, coverage_limit)
 | Gold     | ₹85/wk  | ₹3,500   | Comprehensive coverage      |
 | Platinum | ₹150/wk | ₹7,000   | Premium with max protection |
 
+## 📘 API Standards
+
+- RESTful design
+- JSON responses
+- Versioned endpoints (/api/v1)
+
 ## API Documentation
 
 ### Authentication
 
 **Register User**
-```bash
+```http
 POST /api/v1/auth/register
 Content-Type: application/json
 
@@ -237,7 +311,7 @@ Content-Type: application/json
 ```
 
 **Login**
-```bash
+```http
 POST /api/v1/auth/login
 Content-Type: application/json
 
@@ -256,7 +330,7 @@ Response:
 ### Policy Management
 
 **Get Available Policies**
-```bash
+```http
 GET /api/v1/policies
 
 Response:
@@ -274,7 +348,7 @@ Response:
 ```
 
 **Subscribe to Policy**
-```bash
+```http
 POST /api/v1/policies/subscribe
 Authorization: Bearer <token>
 Content-Type: application/json
@@ -287,7 +361,7 @@ Content-Type: application/json
 ### Claim Processing
 
 **Trigger Parametric Event**
-```bash
+```http
 POST /api/v1/events/trigger
 Authorization: Bearer <token>
 Content-Type: application/json
@@ -304,7 +378,7 @@ Content-Type: application/json
 ```
 
 **Get User Claims**
-```bash
+```http
 GET /api/v1/claims/user/:user_id
 Authorization: Bearer <token>
 
@@ -401,6 +475,28 @@ curl http://localhost:8080/api/v1/claims/user/<user_id> \
 - **Body:** 400-600 weight, 150% line-height
 - **Labels:** 14px, 600 weight
 
+## 📡 Observability
+
+- Structured logging across services
+- Request tracing via API Gateway
+- Health checks for all microservices
+- Metrics-ready architecture (Prometheus compatible)
+
+## 🔐 Security
+
+- JWT-based authentication
+- Rate limiting at API Gateway
+- Input validation across services
+- Fraud detection scoring system
+- Secure environment variable handling
+
+## 📈 Scalability
+
+- Stateless microservices
+- Horizontal scaling supported
+- Event-driven architecture (future Kafka integration)
+- Redis caching for high-throughput reads
+
 ## Production Deployment
 
 ### Docker Setup
@@ -422,9 +518,9 @@ docker-compose logs -f
 # Database
 DB_HOST=your-db-host.rds.amazonaws.com
 DB_PORT=5432
-DB_USER=kavach
+DB_USER=parity
 DB_PASSWORD=<secure-password>
-DB_NAME=kavach_production
+DB_NAME=parity_production
 
 # Redis
 REDIS_HOST=your-redis-host.cache.amazonaws.com
@@ -439,6 +535,13 @@ WEATHER_API_KEY=<your-api-key>
 TRAFFIC_API_KEY=<your-api-key>
 ```
 
+## 🌍 Future Vision
+
+- Expand to all gig platforms (Uber, Zepto, Blinkit)
+- Dynamic pricing based on risk zones
+- AI-based disruption prediction
+- Embedded insurance APIs for platforms
+
 ## Roadmap
 
 - [ ] External API integrations (Weather, Traffic)
@@ -451,6 +554,3 @@ TRAFFIC_API_KEY=<your-api-key>
 - [ ] KYC verification flow
 - [ ] Payment gateway integration (UPI)
 - [ ] Comprehensive test suite
-
-
-
