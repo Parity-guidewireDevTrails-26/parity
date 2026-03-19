@@ -28,6 +28,8 @@ Gig workers lose income due to:
 
 Even 2–3 hours of disruption = significant daily loss
 
+<img width="100%" alt="The Algorithmic Income Gap" src="assets/algorithmic-income-gap.png" />
+
 ## 🧠 Why Parametric Insurance?
 
 Traditional insurance:
@@ -172,6 +174,8 @@ npm run dev
 - **API Health:** http://localhost:8080/health
 
 ## Architecture Overview
+
+<img width="100%" alt="System Architecture: The Macro View" src="assets/paritysystemdesign.png" />
 
 ### Backend Microservices
 
