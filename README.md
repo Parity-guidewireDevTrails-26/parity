@@ -184,68 +184,7 @@ Provides deep geographic nuance.
 - **Real-time Handshake:** Emit events via a message queue (Kafka/BullMQ) to Claim Processing for zero-touch payouts.
 - **Geo-Fencing:** Use PostGIS within PostgreSQL to strictly define 3-5 km polygons, ensuring unaffected zones don't incorrectly trigger payouts.
 
-## Project Structure
 
-```text
-parity/
-├── backend/                 # Golang microservices
-│   ├── services/
-│   │   ├── api-gateway/    # Entry point
-│   │   ├── user-service/   # User management
-│   │   ├── policy-service/ # Policy management
-│   │   └── claim-service/  # Claim processing
-│   ├── pkg/                # Shared packages
-│   └── database/           # SQL schema
-│
-├── app/                    # React Native (Expo)
-│   ├── (auth)/             # Login & Register
-│   └── (tabs)/             # Main app screens
-│
-├── Tie_up/                 # Machine Learning & Core Models
-│   ├── data/               # Synthetic datasets
-│   ├── models/             # Trained XGBoost models
-│   ├── predictor/          # Income loss prediction algorithms
-│   ├── insurance/          # Risk, premium, fraud & payout logic
-│   ├── generate_dataset.py # Data generation pipeline
-│   ├── income.py           # Income calculation
-│   └── train.py            # Model training script
-```
-
-## Quick Start
-
-### Prerequisites
-
-- **Backend:** Go 1.21+, PostgreSQL 14+, Redis 7+
-- **Frontend:** Node.js 18+, npm or yarn, Expo CLI
-- **ML/Models:** Python 3.9+, XGBoost, Pandas, Scikit-learn
-
-### 1. Backend Setup
-
-```bash
-cd backend
-cp .env.example .env
-
-# Create database and run migrations
-createdb parity_db
-psql -U parity -d parity_db -f database/schema.sql
-
-# Install dependencies and start services
-go mod download
-go run services/api-gateway/main.go &
-go run services/user-service/main.go &
-go run services/policy-service/main.go &
-go run services/claim-service/main.go &
-```
-
-### 2. Frontend Setup
-
-```bash
-# Install dependencies
-npm install
-
-# Start Expo development server
-npm run dev
-```
 
 ## Core Models & Machine Learning
 
@@ -335,7 +274,7 @@ This layer cross-references the rider's physical movement against the parametric
 - **Mock Location Detection:** Flags the use of "Fake GPS" apps by comparing GPS-reported location against IP-based network location.
 - **Speed-Up Location Logic:** Tracks rider speed between pings. Impossible movements (e.g., 10km in two minutes to enter a "Heavy Rain" zone) are flagged.
 
-> ### 🚀 Future Vision: The Private API Handshake (Gig Platform Tie-Up)
+> ### Future Vision: The Private API Handshake (Gig Platform Tie-Up)
 > 
 > *Today, Parity achieves **best-in-class fraud detection** as a completely independent, private organization—relying entirely on our robust, multi-layered device, spatial, and crowdsourced signals to ensure accuracy without external dependency. However, to secure an **impenetrable, Diamond-tier level of validation in the future**, a direct Tie-Up with gig platforms is a highly planned, necessary leap.*
 > 
@@ -382,6 +321,70 @@ Claims are only valid if external disruption conditions are met (e.g., Rainfall 
 4. **Apply Deductible:** Rider bears first portion. `Deductible = 10% of expected income`.
 5. **Apply Coverage Limit:** Based on plan (50% or 55%).
 6. **Final Payout Formula:** `Payout = min(Coverage Limit, Predicted Loss - Deductible)`
+
+
+## Project Structure
+
+```text
+parity/
+├── backend/                 # Golang microservices
+│   ├── services/
+│   │   ├── api-gateway/    # Entry point
+│   │   ├── user-service/   # User management
+│   │   ├── policy-service/ # Policy management
+│   │   └── claim-service/  # Claim processing
+│   ├── pkg/                # Shared packages
+│   └── database/           # SQL schema
+│
+├── app/                    # React Native (Expo)
+│   ├── (auth)/             # Login & Register
+│   └── (tabs)/             # Main app screens
+│
+├── Tie_up/                 # Machine Learning & Core Models
+│   ├── data/               # Synthetic datasets
+│   ├── models/             # Trained XGBoost models
+│   ├── predictor/          # Income loss prediction algorithms
+│   ├── insurance/          # Risk, premium, fraud & payout logic
+│   ├── generate_dataset.py # Data generation pipeline
+│   ├── income.py           # Income calculation
+│   └── train.py            # Model training script
+```
+
+## Quick Start
+
+### Prerequisites
+
+- **Backend:** Go 1.21+, PostgreSQL 14+, Redis 7+
+- **Frontend:** Node.js 18+, npm or yarn, Expo CLI
+- **ML/Models:** Python 3.9+, XGBoost, Pandas, Scikit-learn
+
+### 1. Backend Setup
+
+```bash
+cd backend
+cp .env.example .env
+
+# Create database and run migrations
+createdb parity_db
+psql -U parity -d parity_db -f database/schema.sql
+
+# Install dependencies and start services
+go mod download
+go run services/api-gateway/main.go &
+go run services/user-service/main.go &
+go run services/policy-service/main.go &
+go run services/claim-service/main.go &
+```
+
+### 2. Frontend Setup
+
+```bash
+# Install dependencies
+npm install
+
+# Start Expo development server
+npm run dev
+```
 
 ## API Standards
 
