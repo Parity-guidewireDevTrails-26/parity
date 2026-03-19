@@ -349,6 +349,8 @@ Premium depends on:
 
 ### Advanced Fraud Detection
 To build a "Unicorn-tier" platform, the Intelligent Fraud Detection system acts as a multi-layer "Gatekeeper" to ensure that only honest riders receive payouts, protecting the platform's capital during massive weather events.
+<img width="1054" height="563" alt="image" src="https://github.com/user-attachments/assets/d673ce21-22d9-4ae8-91b0-5f68f3a85739" />
+
 
 #### Layer 1: The Device & Identity Layer (Pre-Claim Validation)
 This layer ensures the integrity of the hardware and the person holding it before any claim is processed.
