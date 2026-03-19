@@ -81,35 +81,6 @@ Watch how Parity works in real-time:
 
 <img width="100%" alt="System Architecture: The Macro View" src="assets/paritysystemdesign.png" />
 
-### Backend Microservices
-
-```text
-┌─────────────────────────────────────────────────────────┐
-│                      Client Apps                        │
-│              (React Native, Web, Mobile)                │
-└──────────────────────┬──────────────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────────────┐
-│                   API Gateway :8080                     │
-│  • JWT Authentication  • Rate Limiting  • Routing       │
-└──────────────┬──────────────┬──────────────┬────────────┘
-               │              │              │
-     ┌─────────▼────┐  ┌─────▼──────┐  ┌───▼────────┐
-     │ User Service │  │   Policy   │  │   Claim    │
-     │    :8081     │  │  Service   │  │  Service   │
-     │              │  │   :8082    │  │   :8083    │
-     └──────┬───────┘  └─────┬──────┘  └─────┬──────┘
-            │                │               │
-            └────────────────┴───────────────┘
-                             │
-              ┌──────────────┴──────────────┐
-              │                             │
-         ┌────▼─────┐              ┌───────▼────┐
-         │PostgreSQL│              │   Redis    │
-         │          │              │  (Cache)   │
-         └──────────┘              └────────────┘
-```
-
 ### Data Flow - Parametric Event Processing
 
 ```text
