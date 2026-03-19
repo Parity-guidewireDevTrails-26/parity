@@ -148,8 +148,7 @@ Ensures transparency and fulfills the "Earnings Protected" dashboard metric.
 - `Delivery_Status` (Boolean): Verifies the rider received early warnings.
 - `Poll_Response` (Boolean/Nullable): Stores feedback for poll-based validation ("Is Saket Market blocked?").
 
-#### Technical Best Practices for Schema Robustness
-- **ACID Compliance:** PostgreSQL used for User and Policy services to ensure financial records are never corrupted.
+
 - **High-Speed Caching:** Redis used for Claim Processing to store "Live Triggers" and "Active Session" tokens for sub-second zero-touch payout validation.
 - **Audit Logging:** Every state change in `Claim_ID` is logged with timestamps to pass regulatory/compliance checks.
 
@@ -182,8 +181,7 @@ Provides deep geographic nuance.
 - `Zone_Flood_History` (Boolean): Flags zones prone to "Sudden Waterlogging".
 - `Market_Type` (Enum): `HIGH_ORDER_DENSITY` vs. `RESIDENTIAL`. Helps gauge income loss severity.
 - `Social_Sensitivity_Index` (Float): Rating for areas prone to curfews or sudden strikes (Section 144), prompting proactive tracking.
-
-#### Implementation Best Practices (Golang)
+- 
 - **Concurrency (Goroutines):** Poll weather and traffic data across thousands of zones in parallel.
 - **Real-time Handshake:** Emit events via a message queue (Kafka/BullMQ) to Claim Processing for zero-touch payouts.
 - **Geo-Fencing:** Use PostGIS within PostgreSQL to strictly define 3-5 km polygons, ensuring unaffected zones don't incorrectly trigger payouts.
