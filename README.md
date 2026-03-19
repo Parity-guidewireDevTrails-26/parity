@@ -267,26 +267,53 @@ Premium depends on:
 - `Risk Multiplier = 1 + (Risk ^ 1.5)`
 - `Premium = Base Premium × Risk Multiplier × Plan Loading`
 
-### Fraud Detection
-A rule-based fraud detection system flags suspicious claims:
-- High loss under low-risk conditions
-- High claims without environmental triggers
-- Extreme loss ratios relative to expected income
-- Risk-loss inconsistencies
+### Advanced Fraud Detection
+To build a "Unicorn-tier" platform, the Intelligent Fraud Detection system acts as a multi-layer "Gatekeeper" to ensure that only honest riders receive payouts, protecting the platform's capital during massive weather events.
 
-**Key Checks:**
-1. **Rainfall vs Income Loss:** If rainfall is `< 20 mm` but predicted loss is very high.
-2. **AQI vs Claim Behavior:** If AQI `< 150` but rider reports high loss.
-3. **Temperature-Based Validation:** Flagged if temp is normal `(20–38°C)` but loss is exceptionally high.
-4. **Loss-to-Income Ratio Check:** 
-   - `loss > 50%` of expected under normal conditions is suspicious.
-   - `loss > 90%` of expected is highly suspicious regardless of conditions.
-5. **Risk vs Loss Mismatch:** Low risk score coupled with high predicted loss.
+#### Layer 1: The Device & Identity Layer (Pre-Claim Validation)
+This layer ensures the integrity of the hardware and the person holding it before any claim is processed.
+- **Device Fingerprinting:** The system captures hardware UUIDs, OS versions, and screen resolutions to ensure a single user isn't running multiple accounts on one device.
+- **Integrity Checks:** The User Service automatically detects Rooted (Android) or Jailbroken (iOS) states. It specifically scans for "Background Emulators" or "Auto-Clicker" apps used to simulate delivery activity.
+- **Biometric Handshake:** For high-value payouts (Platinum tier), the app prompts for a Fingerprint or Facial ID check at the moment of the trigger to ensure the registered rider possesses the phone.
 
-**Fraud Scoring:**
-- Mild inconsistency → `+1`
-- Strong inconsistency → `+2`
-- **Final decision:** Fraud if `score >= 3`
+#### Layer 2: The Geo-Spatial & Disruption Layer (Real-Time Validation)
+This layer cross-references the rider's physical movement against the parametric disruption data.
+- **Mock Location Detection:** Flags the use of "Fake GPS" apps by comparing GPS-reported location against IP-based network location.
+- **Speed-Up Location Logic:** Tracks rider speed between pings. Impossible movements (e.g., 10km in two minutes to enter a "Heavy Rain" zone) are flagged.
+
+#### The Private API Handshake (The Tie-Up)
+The strategic tie-up between Parity and gig economy giants operates as a Lightweight Verification Layer.
+- **OAuth Onboarding:** Riders log into their gig app once via OAuth to generate a Hashed Verification Token.
+- **Verification Call:** When a trigger fires, the Claim Service pings the platform’s Private API using the token to ask binary (True/False) questions:
+  - **Active Status:** "Was User ID logged in and 'Ready for Orders' during the disruption?"
+  - **Zone Integrity:** "Is the user currently assigned to the target cluster?"
+- **Earnings Verification (OCR Fallback):** If API tie-up is unavailable, an AI-based OCR validates the baseline income against an earnings screenshot to prevent manual tampering.
+- **Gig Platform Value-Add:** Parity solves Rider Attrition without transferring financial risk. Platforms provide data validation only, enhancing their reputation for worker welfare.
+- **Constraints:** Not a Health/Accident policy (Loss of Income only). Not a data mining operation (only checks Time, Location, Activity). Grouped into 3-5 km zones rather than individual risk tracking.
+
+#### Layer 3: The Social & Crowdsourced Layer (The Verification Engine)
+If a platform refuses a tie-up, or for augmenting general checks, this layer uses a "Hybrid Parametric Model."
+- **Claim Clustering:** Over-reporting by a single rider while hundreds of others successfully deliver in the same zone flags an outlier.
+- **Poll-Based Validation:** For manual claims, a quick poll is sent to other riders in the area (e.g., "Is Saket Market blocked?"). If >60% confirm, the disruption is validated for the zone.
+- **Probability-Weighting:** Claims from "High Probability" areas are fast-tracked, while "Low Probability" claims require secondary validation.
+
+#### Layer 4: The Behavioral Layer (Post-Claim Analysis)
+Background Job Processing runs deep-dive analysis on daily claims.
+- **Historical Pattern Recognition:** AI flags riders who consistently "experience" unique disruptions, assigning a lower Trust Score.
+- **Income-Loss Consistency:** The system compares claimed loss against the rider’s Expected Income Profile. Inconsistencies are flagged for audit.
+
+#### The Consolidated Fraud Scoring Model
+Indicators are fed into a weighted model:
+- **Device Integrity Issue:** +2 points
+- **GPS/IP Mismatch:** +2 points
+- **Speed-up Location detected:** +3 points (Auto-Fraud)
+- **Crowdsource Mismatch:** +1 point
+- **Low Trust Score:** +1 point
+
+**Decision Logic:**
+- **Score 0–1:** Verified (Instant Zero-Touch Payout)
+- **Score 2:** Warning Issued; payment held for 24-hour manual verification
+- **Score 3+:** Claim Denied. Repeated fraudulent activity leads to account suspension to protect the DC balance.
 
 ### Claim Trigger & Payout Logic
 Claims are only valid if external disruption conditions are met (e.g., Rainfall `> 70 mm`, AQI `> 300`, Temp `> 42°C` or `< 10°C`).
