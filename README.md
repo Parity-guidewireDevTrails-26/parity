@@ -335,15 +335,18 @@ This layer cross-references the rider's physical movement against the parametric
 - **Mock Location Detection:** Flags the use of "Fake GPS" apps by comparing GPS-reported location against IP-based network location.
 - **Speed-Up Location Logic:** Tracks rider speed between pings. Impossible movements (e.g., 10km in two minutes to enter a "Heavy Rain" zone) are flagged.
 
-#### The Private API Handshake (The Tie-Up)
-The strategic tie-up between Parity and gig economy giants operates as a Lightweight Verification Layer.
-- **OAuth Onboarding:** Riders log into their gig app once via OAuth to generate a Hashed Verification Token.
-- **Verification Call:** When a trigger fires, the Claim Service pings the platform’s Private API using the token to ask binary (True/False) questions:
-  - **Active Status:** "Was User ID logged in and 'Ready for Orders' during the disruption?"
-  - **Zone Integrity:** "Is the user currently assigned to the target cluster?"
-- **Earnings Verification (OCR Fallback):** If API tie-up is unavailable, an AI-based OCR validates the baseline income against an earnings screenshot to prevent manual tampering.
-- **Gig Platform Value-Add:** Parity solves Rider Attrition without transferring financial risk. Platforms provide data validation only, enhancing their reputation for worker welfare.
-- **Constraints:** Not a Health/Accident policy (Loss of Income only). Not a data mining operation (only checks Time, Location, Activity). Grouped into 3-5 km zones rather than individual risk tracking.
+> ### 🚀 Future Vision: The Private API Handshake (Gig Platform Tie-Up)
+> 
+> *Today, Parity achieves **best-in-class fraud detection** as a completely independent, private organization—relying entirely on our robust, multi-layered device, spatial, and crowdsourced signals to ensure accuracy without external dependency. However, to secure an **impenetrable, Diamond-tier level of validation in the future**, a direct Tie-Up with gig platforms is a highly planned, necessary leap.*
+> 
+> **The Proposed Lightweight Verification Layer:**
+> - **OAuth Onboarding:** Riders would log into their gig app once via OAuth to generate a securely **Hashed Verification Token**.
+> - **Zero-Trust Verification Call:** When a parametric trigger fires, Parity's Claim Service would ping the platform’s Private API using the token to ask only binary (True/False) queries:
+>   - **Active Status:** *"Was User ID actively 'Ready for Orders' during the disruption?"*
+>   - **Zone Integrity:** *"Is the user currently assigned to the specific target delivery cluster?"*
+> - **Current Fallback (Live System):** Until this tie-up is realized, Parity successfully utilizes **AI-based OCR validation** to cross-examine baseline income against earnings screenshots, preventing manual tampering with strict accuracy.
+> - **Platform Value Add:** Parity solves the critical "Rider Attrition" crisis without transferring financial liability to the gig platform. The platform simply provides data validation, instantly enhancing their corporate reputation for worker welfare.
+> - **Constraints:** This operates under **strict zero data mining** protocols. No PII is shared—only restricted Time, Location, and Activity states.
 
 #### Layer 3: The Social & Crowdsourced Layer (The Verification Engine)
 If a platform refuses a tie-up, or for augmenting general checks, this layer uses a "Hybrid Parametric Model."
