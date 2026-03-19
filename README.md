@@ -31,6 +31,16 @@ Even 2–3 hours of disruption = significant daily loss
 
 <img width="1085" height="419" alt="image" src="https://github.com/user-attachments/assets/c59894ce-7075-4af4-81b9-7dcb4223cc7a" />
 
+### Market Opportunity
+
+The gig economy in India is projected to reach 23.5 million workers by 2030. Currently, over 90% of these individuals operate without any form of income protection against environmental disruptions. 
+
+Traditional insurance products fail this demographic because:
+- **High Operational Costs:** Processing a manual claim for a low-value payout (e.g., ₹250) is economically unviable for incumbent insurers.
+- **Data Gap:** Legacy systems cannot track hyper-local disruptions with the precision required for high-frequency, low-ticket claims.
+
+Parity bridges this billion-dollar gap by automating the entire lifecycle, reducing operational overhead to near-zero.
+
 ## Why Parametric Insurance?
 
 Traditional insurance:
@@ -62,10 +72,18 @@ Parity:
 
 No manual claim. No paperwork. Just a seamless safety net.
 
-## Demo
+#### Execution Model
+```text
+Weather API Trigger ---> Go Backend (Geo-Fencing) ---> XGBoost (Loss Prediction) ---> Instant Payout (Wallet)
+       |                        |                            |                          |
+[Event Detection]       [Rider Validation]           [Quantifying Impact]        [Zero-Touch Credit]
+```
 
-Watch how Parity works in real-time:
-[Demo Video Link]
+Watch the zero-touch execution in action:
+
+<img src="https://github.com/user-attachments/assets/fed89684-2e9b-437b-941c-3df8d6467389" width="300" alt="Parity Zero-Touch Demo" />
+
+*Simulation: Heavy rainfall detected in Saket. Raj receives an instant credit notification without opening the app.*
 
 ## Screenshots
 
@@ -78,6 +96,15 @@ Watch how Parity works in real-time:
 ## Architecture Overview
 
 <img width="100%" alt="System Architecture: The Macro View" src="assets/paritysystemdesign.png" />
+
+### Technology Stack
+![Go](https://img.shields.io/badge/go-%2300ADD8.svg?style=for-the-badge&logo=go&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/postgres-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white)
+![Redis](https://img.shields.io/badge/redis-%23DD0031.svg?style=for-the-badge&logo=redis&logoColor=white)
+![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
+![scikit-learn](https://img.shields.io/badge/scikit--learn-%23F7931E.svg?style=for-the-badge&logo=scikit-learn&logoColor=white)
+![React Native](https://img.shields.io/badge/react_native-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB)
+![Expo](https://img.shields.io/badge/expo-1B1F23?style=for-the-badge&logo=expo&logoColor=white)
 
 ### Data Flow - Parametric Event Processing
 
@@ -327,6 +354,19 @@ Claims are only valid if external disruption conditions are met (e.g., Rainfall 
 4. **Apply Deductible:** Rider bears first portion. `Deductible = 10% of expected income`.
 5. **Apply Coverage Limit:** Based on plan (50% or 55%).
 6. **Final Payout Formula:** `Payout = min(Coverage Limit, Predicted Loss - Deductible)`
+
+## Business Model and Unit Economics
+
+To ensure long-term sustainability and protect platform capital, Parity operates on a high-velocity micro-insurance model.
+
+### Revenue Streams
+- **Premium Float:** Weekly micro-premiums (₹60–₹115) collected from thousands of riders create a robust capital pool. Payouts are high-impact but occur only during concentrated environmental triggers.
+- **B2B Licensing:** Future roadmap includes licensing the Disruption Monitoring Engine to gig platforms for internal workforce stability analytics.
+
+### Financial Safeguards
+- **Predictive Risk Load:** Premiums are dynamically adjusted based on non-linear risk scaling (Risk ^ 1.5), ensuring high-risk zones contribute proportionately to the pool.
+- **Coverage Caps:** By capping payouts at 50-55% of predicted loss, the platform prevents total capital depletion during massive black-swan weather events.
+- **Manual Thresholds:** Fraud scoring and minimum loss thresholds (10%) filter out high-frequency, low-impact noise that would otherwise drain the fund.
 
 
 ## Project Structure
