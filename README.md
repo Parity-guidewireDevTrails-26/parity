@@ -74,7 +74,7 @@ No manual claim. No paperwork. Just a seamless safety net.
 
 Watch the zero-touch execution in action:
 
-<img src="https://github.com/user-attachments/assets/fed89684-2e9b-437b-941c-3df8d6467389" width="300" alt="Parity Zero-Touch Demo" />
+https://drive.google.com/file/d/1NhmiGG2r4uddoijGIw7DhH0LVWF7bvqo/view?usp=drivesdk
 
 *Simulation: Heavy rainfall detected in Saket. Raj receives an instant credit notification without opening the app.*
 
