@@ -1,394 +1,657 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform
+  StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView,
+  Platform, Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Check, Shield, MapPin, UploadCloud, Zap } from 'lucide-react-native';
+import {
+  Check, Shield, MapPin, UploadCloud, Zap,
+  Smartphone, ChevronRight, Info,
+} from 'lucide-react-native';
 import Svg, { Rect, Circle } from 'react-native-svg';
-import { ApiService } from '@/services/api';
+import { ApiService, DeviceFingerprint } from '@/services/api';
 import { calculatePremium } from '@/utils/pricing';
 import { detectFraud } from '@/utils/fraud';
 
 const C = {
   bgPrimary: '#F5F5F7', bgCard: '#FFFFFF',
   txt1: '#1C1C1E', txt2: '#6E6E73', txt3: '#AEAEB2',
-  green: '#22C55E', amber: '#F59E0B', red: '#EF4444', border: '#E5E5EA', brand: '#19213D'
+  green: '#22C55E', amber: '#F59E0B', red: '#EF4444',
+  border: '#E5E5EA', brand: '#19213D',
+};
+const SHADOW = {
+  shadowColor: '#000', shadowOpacity: 0.06,
+  shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 3,
 };
 
 const PLATFORMS = ['Swiggy', 'Zomato', 'Zepto', 'Blinkit', 'Porter'];
 const PLANS = [
   { id: 'policy_01', name: 'Silver', limit: 1500, cost: 45 },
   { id: 'policy_02', name: 'Gold', limit: 3500, cost: 85 },
-  { id: 'policy_03', name: 'Platinum', limit: 7000, cost: 150 }
+  { id: 'policy_03', name: 'Platinum', limit: 7000, cost: 150 },
 ];
 
-const ParityStaticLogo = () => (
+const TOTAL_STEPS = 6;
+
+const ParityLogo = () => (
   <View style={styles.logoWrap}>
-    <Svg width="48" height="48" viewBox="0 0 100 100" fill="none">
-      <Rect x="20" y="25" width="60" fill="#19213D" height="20" />
-      <Rect x="10" y="50" width="80" fill="#19213D" height="6" />
-      <Rect x="20" y="61" width="60" fill="#19213D" height="20" />
-      <Circle cx="72" cy="18" r="4.5" fill="#7DB282" />
+    <Svg width="44" height="44" viewBox="0 0 100 100" fill="none">
+      <Rect x="20" y="25" width="60" fill={C.brand} height="20" />
+      <Rect x="10" y="50" width="80" fill={C.brand} height="6" />
+      <Rect x="20" y="61" width="60" fill={C.brand} height="20" />
+      <Circle cx="72" cy="18" r="4.5" fill={C.green} />
     </Svg>
   </View>
 );
+
+// ── Generates a mock device fingerprint ──────────────────────────────────────
+function buildDeviceFingerprint(): DeviceFingerprint {
+  const uuid = 'DEV-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+  return {
+    hardware_uuid: uuid,
+    os_version: Platform.OS === 'ios' ? 'iOS 17.4' : 'Android 13',
+    root_status: false,
+    screen_resolution: `${Dimensions.get('window').width}x${Dimensions.get('window').height}`,
+    timestamp: new Date().toISOString(),
+  };
+}
 
 export default function OnboardingScreen() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
-  // Form State
+  // Step 1 — Consent
+  // (no state needed, user taps Accept)
+
+  // Step 2 — Personal Details
   const [fullName, setFullName] = useState('');
-  const [city, setCity] = useState('');
   const [phone, setPhone] = useState('');
-  
+  const [city, setCity] = useState('');
+
+  // Step 3 — OTP
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState('');
-  
+
+  // Step 4 — Platform + Income
   const [platform, setPlatform] = useState('');
   const [ocrStatus, setOcrStatus] = useState<'' | 'scanning' | 'done'>('');
   const [pricing, setPricing] = useState<any>(null);
 
-  const nextStep = () => setStep(s => s + 1);
+  // Step 5 — Device Security (captured fingerprint)
+  const [fingerprint] = useState<DeviceFingerprint>(buildDeviceFingerprint());
+  const [securityDone, setSecurityDone] = useState(false);
 
-  const handleSendOTP = async () => {
-    if (!fullName || !city || phone.length < 10) return Alert.alert('Missing Info', 'Please fill all fields properly.');
-    setLoading(true);
-    setTimeout(() => { setLoading(false); setOtpSent(true); }, 600);
+  // Step 6 — Policy + T&C
+  const [acceptedTnc, setAcceptedTnc] = useState(false);
+
+  const nextStep = () => setStep(s => Math.min(s + 1, TOTAL_STEPS));
+  const prevStep = () => setStep(s => Math.max(s - 1, 1));
+
+  // ── Handlers ────────────────────────────────────────────────────────────────
+  const handleSendOTP = () => {
+    if (!fullName.trim() || phone.length < 10 || !city.trim()) {
+      return Alert.alert('Missing Info', 'Please fill in all fields.');
+    }
+    setOtpSent(true);
+    nextStep();
   };
 
-  const handleVerifyOTP = async () => {
-    if (otp !== '1234') return Alert.alert('Incorrect OTP', 'Use 1234 for demo.');
-    setLoading(true);
-    setTimeout(() => { setLoading(false); nextStep(); }, 600);
-  };
-
-  const runHardwareHandshake = async () => {
-    setLoading(true);
-    const mockGPS = { lat: 28.5355, lng: 77.2158, device_mocked: false, vpn_active: false };
-    const zone = { centerLat: 28.5, centerLng: 77.2, radiusKm: 10 };
-    const result = detectFraud(mockGPS, zone);
-
-    setTimeout(() => {
-      setLoading(false);
-      nextStep();
-    }, 1500);
+  const handleVerifyOTP = () => {
+    if (otp !== '1234') return Alert.alert('Incorrect OTP', 'Use 1234 for the demo.');
+    nextStep();
   };
 
   const simulateIncomeOCR = () => {
+    if (!platform) return Alert.alert('Select Platform', 'Please choose your gig platform first.');
     setOcrStatus('scanning');
     setTimeout(() => {
-      const p = calculatePremium(25, 40, 'High'); // High Risk Malviya Nagar
+      const p = calculatePremium(25, 40, 'High');
       setPricing(p);
       setOcrStatus('done');
-      setTimeout(nextStep, 1000);
     }, 2500);
   };
 
+  const runSecurityHandshake = () => {
+    setLoading(true);
+    const mockGPS = { lat: 28.5355, lng: 77.2158, device_mocked: false, vpn_active: false };
+    const zone = { centerLat: 28.5, centerLng: 77.2, radiusKm: 10 };
+    detectFraud(mockGPS, zone);
+    setTimeout(() => { setLoading(false); setSecurityDone(true); }, 1500);
+  };
+
   const handleBuyNow = async () => {
+    if (!acceptedTnc) return Alert.alert('Please Accept', 'You must accept the Terms & Conditions.');
     setLoading(true);
     try {
-      await ApiService.register();
-      // Match the policy ID with the tier generated
-      const match = PLANS.find(p => p.name === pricing.tier) || PLANS[1];
+      await ApiService.register({
+        phone_number: `+91${phone}`,
+        name: fullName,
+        platform,
+        work_city: city,
+        password: '1234', // demo password; in prod use a password step
+        device_fingerprint: fingerprint,
+      });
+      const match = PLANS.find(p => p.name === pricing?.tier) || PLANS[1];
       await ApiService.subscribeToPlan(match.id);
       router.replace('/(tabs)');
-    } catch (e: any) { Alert.alert('Error', e.message); }
-    finally { setLoading(false); }
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSkip = async () => {
     setLoading(true);
     try {
-      await ApiService.register();
+      await ApiService.register({
+        phone_number: `+91${phone}`,
+        name: fullName,
+        platform,
+        work_city: city,
+        password: '1234',
+        device_fingerprint: fingerprint,
+      });
       router.replace('/(tabs)');
-    } catch (e: any) { Alert.alert('Error', e.message); }
-    finally { setLoading(false); }
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // ── Layout helpers ───────────────────────────────────────────────────────────
+  const progress = (step / TOTAL_STEPS) * 100;
+
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        
-      {step > 1 && (
+    <View style={{ flex: 1, backgroundColor: C.bgPrimary }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+
+        {/* Header / Progress */}
         <View style={styles.header}>
-          <Text style={styles.stepCount}>Step {step} of 4</Text>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${(step / 4) * 100}%` }]} />
-          </View>
+          {step > 1 && (
+            <TouchableOpacity onPress={prevStep} style={styles.backBtn}>
+              <Text style={styles.backText}>← Back</Text>
+            </TouchableOpacity>
+          )}
+          <View style={{ flex: 1 }} />
+          <Text style={styles.stepCount}>{step} / {TOTAL_STEPS}</Text>
         </View>
-      )}
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, { width: `${progress}%` as any }]} />
+        </View>
 
-      <ScrollView contentContainerStyle={styles.scroll}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
-        {/* STEP 1: Personal Info & Phone + OTP (Seamless Background) */}
-        {step === 1 && (
-          <View style={styles.seamlessContainer}>
-            <View style={styles.brandHero}>
-              <ParityStaticLogo />
+          {/* ── STEP 1: Device Fingerprint Consent ── */}
+          {step === 1 && (
+            <View style={styles.stepContainer}>
+              <ParityLogo />
               <Text style={styles.heroTitle}>Welcome to Parity</Text>
               <Text style={styles.heroSubtitle}>
-                Income protection for Indian gig workers, simplified.
+                AI-parametric income protection for India's gig workers.
               </Text>
-            </View>
 
-            <View style={styles.formPadding}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Full Name</Text>
-                <TextInput
-                  style={[styles.input, otpSent && styles.inputDisabled]}
-                  placeholder="e.g. Rajesh Kumar"
-                  placeholderTextColor={C.txt3}
-                  value={fullName} onChangeText={setFullName}
-                  editable={!otpSent}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Working City</Text>
-                <TextInput
-                  style={[styles.input, otpSent && styles.inputDisabled]}
-                  placeholder="e.g. New Delhi"
-                  placeholderTextColor={C.txt3}
-                  value={city} onChangeText={setCity}
-                  editable={!otpSent}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Mobile Number</Text>
-                <TextInput
-                  style={[styles.input, otpSent && styles.inputDisabled]}
-                  placeholder="+91 98765 43210"
-                  placeholderTextColor={C.txt3}
-                  value={phone} onChangeText={setPhone} 
-                  keyboardType="phone-pad"
-                  editable={!otpSent}
-                />
-              </View>
-
-              {!otpSent ? (
-                <TouchableOpacity style={[styles.btn, { marginTop: 10 }]} onPress={handleSendOTP} activeOpacity={0.8}>
-                  {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Get OTP</Text>}
-                </TouchableOpacity>
-              ) : (
-                <View style={[styles.otpSection, { marginTop: 10 }]}>
-                  <Text style={styles.inputLabel}>One Time Password (OTP)</Text>
-                  <Text style={styles.otpHint}>We sent a secure code to {phone}</Text>
-                  <TextInput
-                    style={[styles.input, styles.otpInput]}
-                    placeholder="----"
-                    placeholderTextColor={C.txt3}
-                    maxLength={4} 
-                    value={otp} 
-                    onChangeText={setOtp} 
-                    keyboardType="number-pad"
-                    autoFocus
-                  />
-                  <TouchableOpacity style={styles.btn} onPress={handleVerifyOTP} activeOpacity={0.8}>
-                    {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Verify & Proceed</Text>}
-                  </TouchableOpacity>
+              <View style={[styles.card, styles.infoCard]}>
+                <View style={styles.infoIconRow}>
+                  <Shield size={20} color={C.amber} />
+                  <Text style={styles.infoCardTitle}>Before We Start — Device Check</Text>
                 </View>
-              )}
-            </View>
-          </View>
-        )}
+                <Text style={styles.infoCardBody}>
+                  To prevent fraud and protect your payouts, Parity records your device's{' '}
+                  <Text style={{ fontWeight: '700', color: C.txt1 }}>hardware ID, OS version, screen resolution,
+                  and root/jailbreak status</Text>.
+                  {'\n\n'}
+                  This data is securely stored, never sold, and used{' '}
+                  <Text style={{ fontWeight: '700', color: C.txt1 }}>only to verify your identity
+                  during zero-touch payout validation</Text>.
+                  {'\n\n'}
+                  You can request deletion at any time from your Profile settings.
+                </Text>
+                <View style={styles.infoDivider} />
+                <View style={styles.infoRow}>
+                  <Smartphone size={14} color={C.txt3} />
+                  <Text style={styles.infoMeta}>
+                    Hardware ID: <Text style={{ color: C.txt1 }}>{fingerprint.hardware_uuid}</Text>
+                  </Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Info size={14} color={C.txt3} />
+                  <Text style={styles.infoMeta}>
+                    OS: <Text style={{ color: C.txt1 }}>{fingerprint.os_version}</Text>
+                    {'   '}Root: <Text style={{ color: C.green }}>Clean</Text>
+                  </Text>
+                </View>
+              </View>
 
-        {/* STEP 2: Security Handshake */}
-        {step === 2 && (
-          <View style={styles.seamlessContainer}>
-            <View style={styles.brandHero}>
-              <Shield size={48} color={C.brand} style={styles.iconCenter} />
-              <Text style={styles.heroTitle}>Security Sync</Text>
-              <Text style={styles.heroSubtitle}>
-                Parity requires native device integrity and GPS binding to ensure secure payouts.
+              <TouchableOpacity style={styles.btnPrimary} onPress={nextStep} activeOpacity={0.85}>
+                <Text style={styles.btnPrimaryText}>Accept & Continue</Text>
+                <ChevronRight size={18} color="#fff" />
+              </TouchableOpacity>
+              <Text style={styles.disclaimer}>
+                By continuing you agree to Parity's Privacy Policy and Terms of Service.
               </Text>
             </View>
-            
-            <View style={styles.formPadding}>
-              <View style={styles.checklist}>
-                <View style={styles.checkItem}><Check size={16} color={C.green} /><Text style={styles.checkText}>Checking root status...</Text></View>
-                <View style={styles.checkItem}><Check size={16} color={C.green} /><Text style={styles.checkText}>Binding GPS module...</Text></View>
-                <View style={styles.checkItem}><Check size={16} color={C.green} /><Text style={styles.checkText}>Verifying VPN status...</Text></View>
+          )}
+
+          {/* ── STEP 2: Personal Details ── */}
+          {step === 2 && (
+            <View style={styles.stepContainer}>
+              <Text style={styles.stepTitle}>Your Details</Text>
+              <Text style={styles.stepSubtitle}>
+                This creates your Parity rider profile. Make sure your mobile number is the one registered with your gig platform.
+              </Text>
+
+              {/* Full Name */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Full Name</Text>
+                <View style={styles.inputWrap}>
+                  <TextInput
+                    style={styles.input}
+                    value={fullName}
+                    onChangeText={setFullName}
+                    placeholder="e.g. Rajesh Kumar"
+                    placeholderTextColor={C.txt3}
+                    autoCapitalize="words"
+                  />
+                </View>
               </View>
-              <TouchableOpacity style={styles.btn} onPress={runHardwareHandshake}>
-                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Run Integrity Check</Text>}
+
+              {/* Phone — India +91 only */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Mobile Number</Text>
+                <View style={styles.inputWrap}>
+                  <View style={styles.countryCode}>
+                    <Text style={styles.countryCodeText}>🇮🇳  +91</Text>
+                  </View>
+                  <View style={styles.phoneDivider} />
+                  <TextInput
+                    style={[styles.input, { flex: 1 }]}
+                    value={phone}
+                    onChangeText={t => setPhone(t.replace(/\D/g, '').slice(0, 10))}
+                    placeholder="98765 43210"
+                    placeholderTextColor={C.txt3}
+                    keyboardType="phone-pad"
+                    maxLength={10}
+                  />
+                </View>
+                <Text style={styles.fieldHint}>
+                  Stored as +91{phone || 'XXXXXXXXXX'}
+                </Text>
+              </View>
+
+              {/* City */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Working City</Text>
+                <View style={styles.inputWrap}>
+                  <MapPin size={16} color={C.txt3} />
+                  <TextInput
+                    style={[styles.input, { flex: 1 }]}
+                    value={city}
+                    onChangeText={setCity}
+                    placeholder="e.g. New Delhi"
+                    placeholderTextColor={C.txt3}
+                    autoCapitalize="words"
+                  />
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.btnPrimary, (!fullName || phone.length < 10 || !city) && styles.btnDisabled]}
+                onPress={handleSendOTP}
+                disabled={!fullName || phone.length < 10 || !city}
+                activeOpacity={0.85}>
+                <Text style={styles.btnPrimaryText}>Send OTP</Text>
+                <ChevronRight size={18} color="#fff" />
               </TouchableOpacity>
             </View>
-          </View>
-        )}
+          )}
 
-        {/* STEP 3: Platform & Income */}
-        {step === 3 && (
-          <View style={styles.seamlessContainer}>
-            <View style={styles.brandHero}>
-              <Text style={styles.heroTitle}>Baseline Earnings</Text>
-              <Text style={styles.heroSubtitle}>Select your primary partner app to establish income protection.</Text>
+          {/* ── STEP 3: OTP Verification ── */}
+          {step === 3 && (
+            <View style={styles.stepContainer}>
+              <Text style={styles.stepTitle}>Verify Number</Text>
+              <Text style={styles.stepSubtitle}>
+                We've sent a 4-digit code to{' '}
+                <Text style={{ fontWeight: '700', color: C.txt1 }}>+91 {phone}</Text>.
+                {'\n'}Use <Text style={{ fontWeight: '700', color: C.brand }}>1234</Text> for the demo.
+              </Text>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>One-Time Password</Text>
+                <TextInput
+                  style={styles.otpInput}
+                  value={otp}
+                  onChangeText={setOtp}
+                  placeholder="· · · ·"
+                  placeholderTextColor={C.txt3}
+                  keyboardType="number-pad"
+                  maxLength={4}
+                  autoFocus
+                  textAlign="center"
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[styles.btnPrimary, otp.length < 4 && styles.btnDisabled]}
+                onPress={handleVerifyOTP}
+                disabled={otp.length < 4}
+                activeOpacity={0.85}>
+                {loading ? <ActivityIndicator color="#fff" /> : (
+                  <>
+                    <Text style={styles.btnPrimaryText}>Verify & Continue</Text>
+                    <ChevronRight size={18} color="#fff" />
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.linkBtn}>
+                <Text style={styles.linkBtnText}>Resend OTP</Text>
+              </TouchableOpacity>
             </View>
+          )}
 
-            <View style={styles.formPadding}>
-              <View style={styles.platformGrid}>
-                {PLATFORMS.map(p => (
-                  <TouchableOpacity
-                    key={p}
-                    style={[styles.platformPill, platform === p && styles.platformActive]}
-                    onPress={() => setPlatform(p)}>
-                    <Text style={[styles.platformText, platform === p && { color: '#fff' }]}>{p}</Text>
-                  </TouchableOpacity>
-                ))}
+          {/* ── STEP 4: Platform + Income Proof ── */}
+          {step === 4 && (
+            <View style={styles.stepContainer}>
+              <Text style={styles.stepTitle}>Income Baseline</Text>
+              <Text style={styles.stepSubtitle}>
+                Select your primary platform. This establishes your 8-week income baseline used to calculate payouts.
+              </Text>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Gig Platform</Text>
+                <View style={styles.platformGrid}>
+                  {PLATFORMS.map(p => (
+                    <TouchableOpacity
+                      key={p}
+                      style={[styles.platformPill, platform === p && styles.platformActive]}
+                      onPress={() => setPlatform(p)}>
+                      <Text style={[styles.platformText, platform === p && { color: '#fff' }]}>{p}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
 
               {platform !== '' && (
-                <View style={styles.uploadSection}>
-                  <Text style={styles.inputLabel}>Upload previous week's earnings</Text>
-                  
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.label}>Last Week's Earnings Proof</Text>
+                  <Text style={styles.fieldHint}>
+                    Parity uses AI-OCR to read your payout screenshot and establish your income baseline. This acts as your fraud-proof identity anchor.
+                  </Text>
+
                   {ocrStatus === '' && (
-                    <TouchableOpacity style={styles.uploadArea} onPress={simulateIncomeOCR}>
-                      <UploadCloud size={32} color={C.txt3} />
-                      <Text style={styles.uploadText}>Tap to upload screenshot</Text>
+                    <TouchableOpacity style={styles.uploadArea} onPress={simulateIncomeOCR} activeOpacity={0.7}>
+                      <UploadCloud size={36} color={C.txt3} />
+                      <Text style={styles.uploadText}>Tap to upload earnings screenshot</Text>
+                      <Text style={styles.uploadSubtext}>Supports Swiggy, Zomato, Zepto receipts</Text>
                     </TouchableOpacity>
                   )}
 
                   {ocrStatus === 'scanning' && (
                     <View style={styles.uploadArea}>
                       <ActivityIndicator size="large" color={C.brand} />
-                      <Text style={[styles.uploadText, { color: C.brand }]}>OCR scanning payouts...</Text>
+                      <Text style={[styles.uploadText, { color: C.brand }]}>OCR Scanning Payouts…</Text>
+                      <Text style={styles.uploadSubtext}>Reading weekly earnings data</Text>
                     </View>
                   )}
 
                   {ocrStatus === 'done' && (
                     <View style={[styles.uploadArea, styles.uploadDone]}>
-                      <Check size={32} color={C.green} />
-                      <Text style={[styles.uploadText, { color: C.green }]}>Income verified.</Text>
+                      <Check size={36} color={C.green} />
+                      <Text style={[styles.uploadText, { color: C.green }]}>Income Verified</Text>
+                      <Text style={[styles.uploadSubtext, { color: C.green }]}>
+                        ~₹{pricing?.expectedWeeklyIncome?.toLocaleString()}/wk baseline locked
+                      </Text>
                     </View>
                   )}
                 </View>
               )}
+
+              {ocrStatus === 'done' && (
+                <TouchableOpacity style={styles.btnPrimary} onPress={nextStep} activeOpacity={0.85}>
+                  <Text style={styles.btnPrimaryText}>Continue</Text>
+                  <ChevronRight size={18} color="#fff" />
+                </TouchableOpacity>
+              )}
             </View>
-          </View>
-        )}
+          )}
 
-        {/* STEP 4: Risk Profile Built & 3 Pricing Cards */}
-        {step === 4 && pricing && (
-           <View style={styles.seamlessContainer}>
-            <View style={styles.brandHero}>
-              <Zap size={32} color={C.amber} style={styles.iconCenter} />
-              <Text style={styles.heroTitle}>Review & Activate</Text>
-              <Text style={styles.heroSubtitle}>Your predicted income is ₹{pricing.expectedWeeklyIncome.toLocaleString()}/wk. A high-risk zone surcharge (+₹{pricing.surcharge}) is active.</Text>
+          {/* ── STEP 5: Device Security Handshake ── */}
+          {step === 5 && (
+            <View style={styles.stepContainer}>
+              <Text style={styles.stepTitle}>Security Sync</Text>
+              <Text style={styles.stepSubtitle}>
+                Parity requires native device integrity to ensure secure, tamper-proof payouts. Run the one-time handshake below.
+              </Text>
+
+              <View style={styles.card}>
+                {[
+                  { label: 'Root / Jailbreak Check', done: securityDone },
+                  { label: 'GPS Module Binding', done: securityDone },
+                  { label: 'VPN Telemetry Scan', done: securityDone },
+                  { label: `Device Fingerprint: ${fingerprint.hardware_uuid}`, done: securityDone },
+                ].map((item, i) => (
+                  <View key={i} style={[styles.checkRow, i > 0 && { borderTopWidth: 1, borderTopColor: C.border, paddingTop: 14 }]}>
+                    <View style={[styles.checkCircle, item.done && styles.checkCircleDone]}>
+                      {item.done && <Check size={14} color="#fff" />}
+                    </View>
+                    <Text style={[styles.checkLabel, item.done && { color: C.txt1 }]}>{item.label}</Text>
+                  </View>
+                ))}
+              </View>
+
+              {!securityDone ? (
+                <TouchableOpacity style={styles.btnPrimary} onPress={runSecurityHandshake} activeOpacity={0.85}>
+                  {loading ? <ActivityIndicator color="#fff" /> : (
+                    <>
+                      <Text style={styles.btnPrimaryText}>Run Integrity Check</Text>
+                      <Shield size={18} color="#fff" />
+                    </>
+                  )}
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity style={[styles.btnPrimary, { backgroundColor: C.green }]} onPress={nextStep} activeOpacity={0.85}>
+                  <Text style={styles.btnPrimaryText}>All Clear — Continue</Text>
+                  <Check size={18} color="#fff" />
+                </TouchableOpacity>
+              )}
             </View>
+          )}
 
-            <View style={styles.formPadding}>
+          {/* ── STEP 6: Policy Selection + T&C ── */}
+          {step === 6 && pricing && (
+            <View style={styles.stepContainer}>
+              <Text style={styles.stepTitle}>Choose Your Shield</Text>
+              <Text style={styles.stepSubtitle}>
+                Predicted velocity: ₹{pricing.expectedWeeklyIncome?.toLocaleString()}/wk.
+                High-risk zone surcharge active (+₹{pricing.surcharge}).
+              </Text>
 
-              {/* Plans Render */}
-              <View style={{ gap: 14, marginBottom: 30 }}>
-                {PLANS.map((plan) => {
-                  const isRecommended = plan.name === pricing.tier;
+              <View style={{ gap: 14, marginBottom: 20 }}>
+                {PLANS.map(plan => {
+                  const isRec = plan.name === pricing.tier;
                   const finalCost = plan.cost + pricing.surcharge;
                   return (
-                    <View key={plan.id} style={[styles.planCard, isRecommended && styles.planCardActive]}>
-                      {isRecommended && (
-                        <View style={styles.recommendedBadge}>
-                          <Text style={styles.recText}>Best Match Found</Text>
+                    <View key={plan.id} style={[styles.planCard, isRec && styles.planCardActive]}>
+                      {isRec && (
+                        <View style={styles.recBadge}>
+                          <Text style={styles.recText}>Best Match</Text>
                         </View>
                       )}
                       <View style={{ flex: 1 }}>
-                        <Text style={[styles.planName, isRecommended && { color: C.green }]}>{plan.name}</Text>
-                        <Text style={styles.planLimits}>Covers up to ₹{plan.limit}</Text>
+                        <Text style={[styles.planName, isRec && { color: C.green }]}>{plan.name}</Text>
+                        <Text style={styles.planLimit}>Covers up to ₹{plan.limit.toLocaleString()}</Text>
                       </View>
                       <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={[styles.planCost, isRecommended && { color: C.txt1 }]}>₹{finalCost}</Text>
-                        <Text style={styles.planFreq}>per week</Text>
+                        <Text style={styles.planCost}>₹{finalCost}</Text>
+                        <Text style={styles.planFreq}>/week</Text>
                       </View>
                     </View>
                   );
                 })}
               </View>
 
-              <TouchableOpacity style={styles.btn} onPress={handleBuyNow}>
-                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Protect Income Now</Text>}
+              {/* T&C */}
+              <View style={[styles.card, { marginBottom: 20 }]}>
+                <Text style={styles.label}>Standard Exclusions</Text>
+                <Text style={styles.infoCardBody}>
+                  Parity does NOT cover losses from: War, Pandemics, Terrorism, or Nuclear events.
+                  These events cannot produce a valid Oracle trigger payload in our Zero-Touch architecture.
+                </Text>
+                <View style={styles.infoDivider} />
+                <TouchableOpacity style={styles.checkboxRow} onPress={() => setAcceptedTnc(!acceptedTnc)} activeOpacity={0.7}>
+                  <View style={[styles.checkbox, acceptedTnc && styles.checkboxActive]}>
+                    {acceptedTnc && <Check size={13} color="#fff" />}
+                  </View>
+                  <Text style={styles.checkboxLabel}>
+                    I agree to the Terms & Conditions and acknowledge all standard exclusions.
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.btnPrimary, !acceptedTnc && styles.btnDisabled]}
+                onPress={handleBuyNow}
+                disabled={!acceptedTnc || loading}
+                activeOpacity={0.85}>
+                {loading ? <ActivityIndicator color="#fff" /> : (
+                  <>
+                    <Text style={styles.btnPrimaryText}>Activate Protection</Text>
+                    <Zap size={18} color="#fff" />
+                  </>
+                )}
               </TouchableOpacity>
-              
-              <TouchableOpacity style={styles.skipBtn} onPress={handleSkip}>
-                <Text style={styles.skipBtnText}>Skip for now</Text>
+
+              <TouchableOpacity style={styles.skipBtn} onPress={handleSkip} disabled={loading}>
+                <Text style={styles.skipText}>Skip for now</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        )}
+          )}
 
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bgPrimary },
-  
-  header: { paddingTop: 60, paddingHorizontal: 24, paddingBottom: 10 },
-  stepCount: { fontSize: 12, fontWeight: '800', color: C.txt3, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 12 },
-  progressTrack: { height: 4, backgroundColor: C.border, borderRadius: 2, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: C.brand },
+  // Header
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: Platform.OS === 'ios' ? 56 : 36, paddingBottom: 10 },
+  backBtn: { paddingVertical: 6, paddingRight: 16 },
+  backText: { fontSize: 15, color: C.brand, fontWeight: '600' },
+  stepCount: { fontSize: 12, fontWeight: '700', color: C.txt3, letterSpacing: 0.5 },
+  progressTrack: { height: 3, backgroundColor: C.border, marginHorizontal: 20 },
+  progressFill: { height: '100%', backgroundColor: C.brand, borderRadius: 2 },
 
-  scroll: { flexGrow: 1, paddingBottom: 60 },
-  
-  // ALL Seamless!
-  seamlessContainer: { flex: 1, paddingTop: 40 },
-  brandHero: { alignItems: 'center', paddingHorizontal: 32, marginBottom: 36 },
-  heroTitle: { fontSize: 26, fontWeight: '800', color: C.txt1, marginTop: 16, marginBottom: 8, textAlign: 'center' },
-  heroSubtitle: { fontSize: 14, color: C.txt2, textAlign: 'center', lineHeight: 22 },
-  formPadding: { paddingHorizontal: 24 },
-  
-  logoWrap: { width: 72, height: 72, backgroundColor: C.bgCard, borderRadius: 20, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 3 },
-  
-  inputGroup: { marginBottom: 18 },
-  inputLabel: { fontSize: 12, fontWeight: '700', color: C.txt2, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, marginLeft: 4 },
-  input: { 
-    backgroundColor: C.bgCard, borderRadius: 16, padding: 18, 
-    fontSize: 16, color: C.txt1, fontWeight: '600',
-    borderWidth: 1, borderColor: '#FFFFFF',
-    shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2
+  scroll: { paddingBottom: 60 },
+  stepContainer: { paddingHorizontal: 24, paddingTop: 28 },
+
+  // Brand (Step 1)
+  logoWrap: { width: 72, height: 72, backgroundColor: C.bgCard, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 18, ...SHADOW },
+  heroTitle: { fontSize: 30, fontWeight: '800', color: C.txt1, marginBottom: 6, letterSpacing: -0.3 },
+  heroSubtitle: { fontSize: 15, color: C.txt2, lineHeight: 22, marginBottom: 28 },
+
+  // Step headers
+  stepTitle: { fontSize: 26, fontWeight: '800', color: C.txt1, marginBottom: 6 },
+  stepSubtitle: { fontSize: 14, color: C.txt2, lineHeight: 22, marginBottom: 24 },
+
+  // Info card (Step 1 consent)
+  card: { backgroundColor: C.bgCard, borderRadius: 18, padding: 18, marginBottom: 24, ...SHADOW },
+  infoCard: { borderLeftWidth: 3, borderLeftColor: C.amber },
+  infoIconRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  infoCardTitle: { fontSize: 14, fontWeight: '700', color: C.txt1 },
+  infoCardBody: { fontSize: 13, color: C.txt2, lineHeight: 21 },
+  infoDivider: { height: 1, backgroundColor: C.border, marginVertical: 14 },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  infoMeta: { fontSize: 12, color: C.txt3 },
+
+  // Form fields
+  fieldGroup: { marginBottom: 20 },
+  label: { fontSize: 11, fontWeight: '700', color: C.txt3, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 },
+  inputWrap: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: C.bgCard, borderRadius: 14,
+    paddingHorizontal: 14, paddingVertical: 14,
+    borderWidth: 1, borderColor: C.border, ...SHADOW,
   },
-  inputDisabled: { opacity: 0.5, backgroundColor: 'transparent', shadowOpacity: 0, borderWidth: 1, borderColor: C.border },
-  
-  otpSection: { paddingTop: 10 },
-  otpHint: { fontSize: 13, color: C.txt2, marginBottom: 16, marginLeft: 4 },
-  otpInput: { textAlign: 'center', fontSize: 32, letterSpacing: 16, fontWeight: '800', marginBottom: 24 },
-  
-  btn: { backgroundColor: C.brand, borderRadius: 16, paddingVertical: 18, alignItems: 'center', shadowColor: C.brand, shadowOpacity: 0.2, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  input: { flex: 1, fontSize: 15, color: C.txt1 },
+  fieldHint: { fontSize: 11, color: C.txt3, marginTop: 6, marginLeft: 4 },
 
-  skipBtn: { marginTop: 16, paddingVertical: 12, alignItems: 'center' },
-  skipBtnText: { color: C.txt2, fontSize: 14, fontWeight: '700' },
+  // Phone prefix
+  countryCode: { paddingRight: 4 },
+  countryCodeText: { fontSize: 15, fontWeight: '600', color: C.txt1 },
+  phoneDivider: { width: 1, height: 22, backgroundColor: C.border, marginRight: 2 },
 
-  iconCenter: { alignSelf: 'center', marginBottom: 8 },
-  textCenter: { textAlign: 'center' },
+  // OTP
+  otpInput: {
+    backgroundColor: C.bgCard, borderRadius: 14, padding: 20,
+    fontSize: 36, fontWeight: '800', color: C.txt1, textAlign: 'center',
+    letterSpacing: 16, borderWidth: 1, borderColor: C.border, ...SHADOW,
+  },
 
-  checklist: { gap: 12, marginVertical: 20 },
-  checkItem: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, backgroundColor: C.bgCard, borderRadius: 14, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
-  checkText: { fontSize: 14, fontWeight: '600', color: C.txt1 },
-
-  platformGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 10 },
-  platformPill: { backgroundColor: C.bgCard, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2, paddingHorizontal: 18, paddingVertical: 12, borderRadius: 20, borderWidth: 1, borderColor: '#FFF' },
+  // Platform pills
+  platformGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  platformPill: {
+    backgroundColor: C.bgCard, paddingHorizontal: 18, paddingVertical: 12,
+    borderRadius: 22, borderWidth: 1, borderColor: C.border, ...SHADOW,
+  },
   platformActive: { backgroundColor: C.brand, borderColor: C.brand },
-  platformText: { fontSize: 14, fontWeight: '700', color: C.txt2 },
+  platformText: { fontSize: 14, fontWeight: '600', color: C.txt2 },
 
-  uploadSection: { marginTop: 32 },
-  uploadArea: { 
-    height: 140, borderWidth: 2, borderStyle: 'dashed', borderColor: C.border, 
-    borderRadius: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: 'transparent' 
+  // Upload
+  uploadArea: {
+    height: 150, borderWidth: 2, borderStyle: 'dashed', borderColor: C.border,
+    borderRadius: 16, justifyContent: 'center', alignItems: 'center',
+    backgroundColor: C.bgCard, marginTop: 12, gap: 8,
   },
-  uploadDone: { borderColor: C.green, backgroundColor: C.green + '11', borderStyle: 'solid' },
-  uploadText: { fontSize: 14, fontWeight: '600', color: C.txt2, marginTop: 12 },
+  uploadDone: { borderStyle: 'solid', borderColor: C.green, backgroundColor: `${C.green}11` },
+  uploadText: { fontSize: 14, fontWeight: '600', color: C.txt2 },
+  uploadSubtext: { fontSize: 12, color: C.txt3 },
 
-  // Pricing Cards
-  planCard: { flexDirection: 'row', alignItems: 'center', padding: 20, backgroundColor: C.bgCard, borderRadius: 16, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2, borderWidth: 1, borderColor: '#FFF' },
-  planCardActive: { borderColor: C.green, backgroundColor: '#F0FDF4' },
-  recommendedBadge: { position: 'absolute', top: -10, left: 20, backgroundColor: C.green, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
-  recText: { color: '#FFF', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
-  planName: { fontSize: 16, fontWeight: '800', color: C.txt1, marginBottom: 4 },
-  planLimits: { fontSize: 13, color: C.txt2 },
-  planCost: { fontSize: 22, fontWeight: '800', color: C.txt2 },
-  planFreq: { fontSize: 11, color: C.txt3, fontWeight: '600' }
+  // Security checklist
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 14 },
+  checkCircle: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: C.border, justifyContent: 'center', alignItems: 'center' },
+  checkCircleDone: { backgroundColor: C.green, borderColor: C.green },
+  checkLabel: { fontSize: 13, color: C.txt3, flex: 1 },
+
+  // Plan cards
+  planCard: {
+    flexDirection: 'row', alignItems: 'center', padding: 18,
+    backgroundColor: C.bgCard, borderRadius: 16, borderWidth: 1, borderColor: C.border, ...SHADOW,
+  },
+  planCardActive: { borderColor: C.green, backgroundColor: `${C.green}08` },
+  recBadge: { position: 'absolute', top: -10, left: 16, backgroundColor: C.green, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 8 },
+  recText: { color: '#fff', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+  planName: { fontSize: 17, fontWeight: '800', color: C.txt1, marginBottom: 2 },
+  planLimit: { fontSize: 12, color: C.txt2 },
+  planCost: { fontSize: 24, fontWeight: '800', color: C.txt1 },
+  planFreq: { fontSize: 11, color: C.txt3, fontWeight: '600' },
+
+  // T&C checkbox
+  checkboxRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: C.txt3, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  checkboxActive: { backgroundColor: C.green, borderColor: C.green },
+  checkboxLabel: { flex: 1, fontSize: 13, color: C.txt2, lineHeight: 20 },
+
+  // Buttons
+  btnPrimary: {
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8,
+    backgroundColor: C.brand, borderRadius: 16, paddingVertical: 17,
+    marginBottom: 12,
+  },
+  btnPrimaryText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  btnDisabled: { opacity: 0.4 },
+
+  skipBtn: { alignItems: 'center', paddingVertical: 12 },
+  skipText: { fontSize: 14, color: C.txt2, fontWeight: '600' },
+
+  linkBtn: { alignItems: 'center', paddingVertical: 12 },
+  linkBtnText: { fontSize: 14, color: C.brand, fontWeight: '600' },
+
+  disclaimer: { fontSize: 11, color: C.txt3, textAlign: 'center', marginTop: 16, lineHeight: 16 },
 });
