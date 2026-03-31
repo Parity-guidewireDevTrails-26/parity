@@ -1,16 +1,21 @@
 package models
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 type Policy struct {
-	ID             string    `json:"id"`
-	Name           string    `json:"name"`
-	WeeklyPremium  float64   `json:"weekly_premium"`
-	CoverageLimit  float64   `json:"coverage_limit"`
-	Description    string    `json:"description"`
-	IsActive       bool      `json:"is_active"`
-	CreatedAt      time.Time `json:"created_at"`
+	ID             string          `json:"id"`
+	Name           string          `json:"name"`
+	WeeklyPremium  float64         `json:"weekly_premium"`
+	CoverageLimit  float64         `json:"coverage_limit"`
+	Description    string          `json:"description"`
+	Exclusions     json.RawMessage `json:"exclusions"`
+	IsActive       bool            `json:"is_active"`
+	CreatedAt      time.Time       `json:"created_at"`
 }
+
 
 type UserPolicy struct {
 	ID            string    `json:"id"`

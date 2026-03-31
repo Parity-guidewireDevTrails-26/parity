@@ -155,6 +155,7 @@ Handles the weekly pricing model and the "cooling-off" period for plan upgrades.
 - `Coverage_Multiplier` (Float): 0.50 (Silver/Gold) or 0.55 (Platinum).
 - `Effective_Date` / `Expiry_Date`: Strictly defined as a 7-day window.
 - `Upgrade_Lock_Until` (Timestamp): Ensures new coverage upgrades activate after a 2-week cooling-off period.
+- `Exclusions` (JSONB): Standard exclusions array (War, Pandemic, Terrorism, Nuclear events) for all policies.
 
 #### 3. Claim Processing Schema (Automated Payout Engine)
 Critical schema for Parametric Automation connecting real-time triggers to financial loss.
@@ -367,6 +368,10 @@ To ensure long-term sustainability and protect platform capital, Parity operates
 - **Predictive Risk Load:** Premiums are dynamically adjusted based on non-linear risk scaling (Risk ^ 1.5), ensuring high-risk zones contribute proportionately to the pool.
 - **Coverage Caps:** By capping payouts at 50-55% of predicted loss, the platform prevents total capital depletion during massive black-swan weather events.
 - **Manual Thresholds:** Fraud scoring and minimum loss thresholds (10%) filter out high-frequency, low-impact noise that would otherwise drain the fund.
+- **Standard Exclusions:** Explicitly excludes War, Pandemic, Terrorism, and Nuclear events to protect the micro-insurance pool from catastrophic systemic insolvency. This is technically enforced in the Zero-Touch Architecture via:
+  1. **Oracle Constraint:** The API Gateway strictly listens for designated environmental payloads (e.g., `Rain > 40mm`, `AQI > 500`). Uncovered perils (e.g., Pandemics) never produce a valid trigger payload.
+  2. **Systemic Circuit Breaker:** If a catastrophic event causes a massive `MOBILITY_COLLAPSE` across all zones simultaneously, the anomaly detection engine automatically halts zero-touch processing and routes claims to manual review.
+  3. **Global Kill Switch (Force Majeure):** In a declared national emergency, administrators can legally freeze the `parametric_events` listener, stopping all automated payouts based on the accepted Terms & Conditions.
 
 
 ## Project Structure

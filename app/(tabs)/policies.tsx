@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert,
+  ActivityIndicator, Alert, Modal,
 } from 'react-native';
 import { Check } from 'lucide-react-native';
 import { ApiService, Policy } from '@/services/api';
@@ -33,6 +33,9 @@ export default function PoliciesScreen() {
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState<string | null>(null);
+  const [showTnc, setShowTnc] = useState(false);
+  const [selectedPlanForTnc, setSelectedPlanForTnc] = useState<{id: string, name: string} | null>(null);
+  const [acceptedTnc, setAcceptedTnc] = useState(false);
 
   useEffect(() => { fetchPolicies(); }, []);
 
@@ -47,7 +50,17 @@ export default function PoliciesScreen() {
     }
   };
 
-  const handleSubscribe = async (id: string, name: string) => {
+  const handleSubscribe = (id: string, name: string) => {
+    setSelectedPlanForTnc({ id, name });
+    setAcceptedTnc(false);
+    setShowTnc(true);
+  };
+
+  const proceedWithSubscription = () => {
+    setShowTnc(false);
+    if (!selectedPlanForTnc) return;
+    const { id, name } = selectedPlanForTnc;
+
     if (name === 'Platinum') {
       Alert.alert(
         '2-Week Waiting Period',
@@ -181,7 +194,50 @@ export default function PoliciesScreen() {
       </View>
 
       <View style={{ height: 40 }} />
+
+      {/* T&C Modal */}
+      <Modal visible={showTnc} animationType="fade" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Terms & Conditions</Text>
+            <ScrollView style={styles.modalScroll}>
+              <Text style={styles.modalText}>
+                Before activating your Parity income protection shield, please review the standard conditions.
+                {'\n\n'}
+                <Text style={{ fontWeight: 'bold' }}>Standard Exclusions</Text>
+                {'\n'}
+                Parity products do NOT provide coverage for losses caused directly or indirectly by:
+                {'\n\n'}• War, invasion, acts of foreign enemies
+                {'\n'}• Pandemics and related governmental lockdowns
+                {'\n'}• Terrorism, cyber-terrorism, or riots not mapped to mobility collapse
+                {'\n'}• Nuclear energy risks or radioactive contamination
+              </Text>
+
+              <TouchableOpacity style={styles.checkboxContainer} onPress={() => setAcceptedTnc(!acceptedTnc)}>
+                <View style={[styles.checkbox, acceptedTnc && styles.checkboxActive]}>
+                  {acceptedTnc && <Check size={14} color="#fff" />}
+                </View>
+                <Text style={styles.checkboxLabel}>I agree to the Terms & Conditions and acknowledge all standard exclusions.</Text>
+              </TouchableOpacity>
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.btnCancel} onPress={() => setShowTnc(false)}>
+                <Text style={styles.btnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.btnAccept, !acceptedTnc && styles.btnDisabled]}
+                onPress={proceedWithSubscription}
+                disabled={!acceptedTnc}
+              >
+                <Text style={styles.btnAcceptText}>Agree & Proceed</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
+
   );
 }
 
@@ -245,4 +301,20 @@ const styles = StyleSheet.create({
   howDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.green, marginTop: 5 },
   howStep: { fontSize: 13, fontWeight: '700', color: C.txt1, marginBottom: 2 },
   howDesc: { fontSize: 12, color: C.txt2, lineHeight: 18 },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
+  modalContent: { backgroundColor: C.bgCard, borderRadius: 20, padding: 24, maxHeight: '80%' },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: C.txt1, marginBottom: 16 },
+  modalScroll: { marginBottom: 20 },
+  modalText: { fontSize: 14, color: C.txt2, lineHeight: 22, marginBottom: 20 },
+  checkboxContainer: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, backgroundColor: C.bgPrimary, padding: 16, borderRadius: 12 },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: C.txt3, alignItems: 'center', justifyContent: 'center' },
+  checkboxActive: { backgroundColor: C.green, borderColor: C.green },
+  checkboxLabel: { flex: 1, fontSize: 13, color: C.txt1, lineHeight: 18 },
+  modalActions: { flexDirection: 'row', gap: 12 },
+  btnCancel: { flex: 1, paddingVertical: 14, alignItems: 'center', borderRadius: 12, backgroundColor: C.bgPrimary },
+  btnCancelText: { color: C.txt1, fontWeight: '700' },
+  btnAccept: { flex: 1, paddingVertical: 14, alignItems: 'center', borderRadius: 12, backgroundColor: C.txt1 },
+  btnAcceptText: { color: '#fff', fontWeight: '700' },
+  btnDisabled: { opacity: 0.5 },
 });

@@ -46,7 +46,7 @@ func main() {
 
 func getPolicies(c *gin.Context) {
 	query := `
-		SELECT id, name, weekly_premium, coverage_limit, description, is_active
+		SELECT id, name, weekly_premium, coverage_limit, description, exclusions, is_active
 		FROM policies
 		WHERE is_active = true
 		ORDER BY weekly_premium ASC
@@ -62,7 +62,7 @@ func getPolicies(c *gin.Context) {
 	var policies []models.Policy
 	for rows.Next() {
 		var policy models.Policy
-		if err := rows.Scan(&policy.ID, &policy.Name, &policy.WeeklyPremium, &policy.CoverageLimit, &policy.Description, &policy.IsActive); err != nil {
+		if err := rows.Scan(&policy.ID, &policy.Name, &policy.WeeklyPremium, &policy.CoverageLimit, &policy.Description, &policy.Exclusions, &policy.IsActive); err != nil {
 			continue
 		}
 		policies = append(policies, policy)

@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS policies (
     weekly_premium DECIMAL(10, 2) NOT NULL,
     coverage_limit DECIMAL(10, 2) NOT NULL,
     description TEXT,
+    exclusions JSONB DEFAULT '["War", "Pandemic", "Terrorism", "Nuclear"]'::jsonb,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
