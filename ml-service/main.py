@@ -4,11 +4,14 @@ Exposes: /predict, /fraud/score, /premium/calculate, /payout/calculate, /health
 """
 import os
 import sys
+import time as _time
 import pickle
 import json
 import logging
 from contextlib import asynccontextmanager
 from typing import Optional
+
+import httpx
 
 import numpy as np
 import xgboost as xgb
@@ -348,3 +351,142 @@ def calculate_payout(req: PayoutRequest):
         "reason": "Verified and processed.",
         "fraud_decision": req.fraud_decision,
     }
+
+
+# ── /risk/location — personalised premium from GPS ───────────────────────────
+class LocationRiskRequest(BaseModel):
+    lat: float = Field(..., ge=-90, le=90)
+    lng: float = Field(..., ge=-180, le=180)
+    hours_per_day: float = Field(8.0, ge=0, le=24)
+    orders_per_hour: float = Field(3.0, ge=0)
+    days_per_week: float = Field(5.0, ge=0, le=7)
+    earnings_per_order: float = Field(60.0, ge=0)
+    platform: str = Field("Swiggy")
+
+
+def _fetch_owm_current(lat: float, lng: float, api_key: str) -> dict:
+    """Fetch current weather from OpenWeatherMap."""
+    url = (
+        f"https://api.openweathermap.org/data/2.5/weather"
+        f"?lat={lat}&lon={lng}&appid={api_key}&units=metric"
+    )
+    resp = httpx.get(url, timeout=8)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def _fetch_owm_history(lat: float, lng: float, api_key: str) -> dict:
+    """Fetch past 7 days (168 hours) of weather history from OWM."""
+    end_ts = int(_time.time())
+    start_ts = end_ts - (7 * 24 * 3600)  # 7 days ago
+    url = (
+        f"https://history.openweathermap.org/data/2.5/history/city"
+        f"?lat={lat}&lon={lng}&type=hour&start={start_ts}&cnt=168"
+        f"&appid={api_key}&units=metric"
+    )
+    resp = httpx.get(url, timeout=10)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def _build_risk_from_owm(current: dict, history: dict | None) -> dict:
+    """Extract weather signals and compute aggregate risk for the location."""
+    rain1h = current.get("rain", {}).get("1h", 0.0)
+    temp = current.get("main", {}).get("temp", 30.0)
+    humidity = current.get("main", {}).get("humidity", 50.0)
+
+    # Defaults for historical averages
+    avg_rain = rain1h
+    max_temp = temp
+    rain_event_days = 1 if rain1h > 5 else 0
+
+    if history and "list" in history:
+        rain_vals = [r.get("rain", {}).get("1h", 0.0) for r in history["list"]]
+        temp_vals = [r.get("main", {}).get("temp", 30.0) for r in history["list"]]
+        avg_rain = sum(rain_vals) / max(len(rain_vals), 1)
+        max_temp = max(temp_vals) if temp_vals else temp
+        rain_event_days = sum(1 for r in rain_vals if r > 10) // 8  # 8 readings/day
+
+    return {
+        "current_rain_mm": round(rain1h, 2),
+        "avg_rain_7d_mm": round(avg_rain, 2),
+        "current_temp_c": round(temp, 2),
+        "max_temp_7d_c": round(max_temp, 2),
+        "humidity_pct": humidity,
+        "rain_event_days_7d": rain_event_days,
+    }
+
+
+@app.post("/risk/location")
+async def risk_from_location(req: LocationRiskRequest):
+    """
+    Called during onboarding after the user grants location.
+    1. Fetches live OWM weather for the user's GPS
+    2. Tries OWM History API for past 7 days (requires paid plan — gracefully falls back)
+    3. Computes risk score from combined signals
+    4. Returns personalised premium recommendations for all 3 plans
+    """
+    owm_key = os.getenv("OWM_API_KEY", "b1777a4ef541f1908bb7b32aece06067")
+
+    # ── Step 1: Fetch current weather ─────────────────────────────────────────
+    try:
+        current = _fetch_owm_current(req.lat, req.lng, owm_key)
+    except Exception as e:
+        logger.warning("OWM current weather fetch failed: %s — using defaults", e)
+        current = {}
+
+    # ── Step 2: Try historical data (paid plan feature) ───────────────────────
+    history = None
+    try:
+        history = _fetch_owm_history(req.lat, req.lng, owm_key)
+        logger.info("✅ OWM historical data fetched (%d records)", len(history.get("list", [])))
+    except Exception as e:
+        logger.info("OWM history not available (free plan): %s", e)
+
+    # ── Step 3: Build weather signals ─────────────────────────────────────────
+    signals = _build_risk_from_owm(current, history)
+
+    # ── Step 4: Compute risk score ────────────────────────────────────────────
+    risk_score = compute_risk_score(
+        rainfall_mm=signals["avg_rain_7d_mm"],
+        aqi=100.0,  # AQI not in OWM free tier
+        temperature=signals["current_temp_c"],
+        platform_demand_index=1.0,
+        restaurant_density=0.6,
+        peak_hour_ratio=0.35,
+    )
+
+    # ── Step 5: Compute expected weekly income ────────────────────────────────
+    expected_weekly = (
+        req.hours_per_day * req.orders_per_hour * req.earnings_per_order * req.days_per_week
+    )
+
+    # ── Step 6: Personalised premium for each plan ────────────────────────────
+    def _premium(plan: str) -> dict:
+        plans = {
+            "SILVER":   {"coverage": 0.50, "loading": 1.00, "coverage_limit": 1500},
+            "GOLD":     {"coverage": 0.50, "loading": 1.15, "coverage_limit": 3500},
+            "PLATINUM": {"coverage": 0.55, "loading": 1.30, "coverage_limit": 7000},
+        }
+        p = plans[plan]
+        base = expected_weekly * p["coverage"] * 0.012
+        multiplier = 1 + (risk_score ** 1.5)
+        total = max(40, min(250, base * multiplier * p["loading"]))
+        return {
+            "plan": plan,
+            "weekly_premium": round(total, 2),
+            "coverage_limit": p["coverage_limit"],
+            "risk_loading": round((multiplier - 1) * 100, 1),
+        }
+
+    return {
+        "location": {"lat": req.lat, "lng": req.lng},
+        "weather": signals,
+        "risk_score": risk_score,
+        "risk_label": "HIGH" if risk_score > 0.6 else "MEDIUM" if risk_score > 0.3 else "LOW",
+        "expected_weekly_income": round(expected_weekly, 2),
+        "recommended_plan": "GOLD" if risk_score > 0.4 else "SILVER",
+        "plans": [_premium("SILVER"), _premium("GOLD"), _premium("PLATINUM")],
+        "data_source": "historical_7d" if history else "current_only",
+    }
+

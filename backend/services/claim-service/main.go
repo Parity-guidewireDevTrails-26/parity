@@ -35,6 +35,10 @@ func main() {
 
 	claimProcessor := NewClaimProcessor()
 
+	// ── Phase 2: Seed zones and start real-world API poller ─────────────────
+	SeedZoneRiskScoresDB(claimProcessor)
+	StartPoller(claimProcessor)
+
 	router.POST("/api/v1/events/trigger", middleware.AuthMiddleware(), func(c *gin.Context) {
 		var event models.ParametricEvent
 		if err := c.ShouldBindJSON(&event); err != nil {

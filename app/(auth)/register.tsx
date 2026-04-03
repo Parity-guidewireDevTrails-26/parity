@@ -7,8 +7,9 @@ import {
 import { useRouter } from 'expo-router';
 import {
   Check, Shield, MapPin, UploadCloud, Zap,
-  Smartphone, ChevronRight, Info,
+  Smartphone, ChevronRight, Info, Navigation,
 } from 'lucide-react-native';
+import * as Location from 'expo-location';
 import Svg, { Rect, Circle } from 'react-native-svg';
 import { ApiService, DeviceFingerprint } from '@/services/api';
 import { calculatePremium } from '@/utils/pricing';
@@ -32,7 +33,7 @@ const PLANS = [
   { id: 'policy_03', name: 'Platinum', limit: 7000, cost: 150 },
 ];
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 7;
 
 const ParityLogo = () => (
   <View style={styles.logoWrap}>
@@ -63,33 +64,58 @@ export default function OnboardingScreen() {
   const [loading, setLoading] = useState(false);
 
   // Step 1 — Consent
-  // (no state needed, user taps Accept)
+  // Step 2 — Location Permission
+  const [userLat, setUserLat] = useState<number | null>(null);
+  const [userLng, setUserLng] = useState<number | null>(null);
+  const [locationStatus, setLocationStatus] = useState<
+    'idle' | 'requesting' | 'granted' | 'denied'
+  >('idle');
 
-  // Step 2 — Personal Details
+  // Step 3 — Personal Details
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [city, setCity] = useState('');
 
-  // Step 3 — OTP
+  // Step 4 — OTP
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState('');
 
-  // Step 4 — Platform + Income
+  // Step 5 — Platform + Income
   const [platform, setPlatform] = useState('');
   const [ocrStatus, setOcrStatus] = useState<'' | 'scanning' | 'done'>('');
-  const [pricing, setPricing] = useState<any>(null);
+  const [mlPlans, setMlPlans] = useState<any[]>([]); // real ML-priced plans
+  const [locationRisk, setLocationRisk] = useState<any>(null);
 
-  // Step 5 — Device Security (captured fingerprint)
+  // Step 6 — Device Security (captured fingerprint)
   const [fingerprint] = useState<DeviceFingerprint>(buildDeviceFingerprint());
   const [securityDone, setSecurityDone] = useState(false);
 
-  // Step 6 — Policy + T&C
+  // Step 7 — Policy + T&C
   const [acceptedTnc, setAcceptedTnc] = useState(false);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>('');
 
   const nextStep = () => setStep(s => Math.min(s + 1, TOTAL_STEPS));
   const prevStep = () => setStep(s => Math.max(s - 1, 1));
 
   // ── Handlers ────────────────────────────────────────────────────────────────
+  // Step 2: Request location
+  const handleRequestLocation = async () => {
+    setLocationStatus('requesting');
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocationStatus('denied');
+        return;
+      }
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      setUserLat(loc.coords.latitude);
+      setUserLng(loc.coords.longitude);
+      setLocationStatus('granted');
+    } catch (e) {
+      setLocationStatus('denied');
+    }
+  };
+
   const handleSendOTP = () => {
     if (!fullName.trim() || phone.length < 10 || !city.trim()) {
       return Alert.alert('Missing Info', 'Please fill in all fields.');
@@ -103,14 +129,37 @@ export default function OnboardingScreen() {
     nextStep();
   };
 
-  const simulateIncomeOCR = () => {
+  // Calls the real ML service with GPS + income data to get risk-priced plans
+  const simulateIncomeOCR = async () => {
     if (!platform) return Alert.alert('Select Platform', 'Please choose your gig platform first.');
     setOcrStatus('scanning');
-    setTimeout(() => {
+    try {
+      const mlUrl = process.env.EXPO_PUBLIC_ML_URL ?? 'http://localhost:8085';
+      const resp = await fetch(`${mlUrl}/risk/location`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lat: userLat ?? 28.5355,
+          lng: userLng ?? 77.2158,
+          hours_per_day: 8,
+          orders_per_hour: 3,
+          days_per_week: 5,
+          earnings_per_order: 60,
+          platform,
+        }),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        setLocationRisk(data);
+        setMlPlans(data.plans ?? []);
+      }
+    } catch (e) {
+      // Fallback to local formula
       const p = calculatePremium(25, 40, 'High');
-      setPricing(p);
+      setLocationRisk(null);
+    } finally {
       setOcrStatus('done');
-    }, 2500);
+    }
   };
 
   const runSecurityHandshake = () => {
@@ -130,11 +179,12 @@ export default function OnboardingScreen() {
         name: fullName,
         platform,
         work_city: city,
-        password: '1234', // demo password; in prod use a password step
+        password: '1234',
         device_fingerprint: fingerprint,
       });
-      const match = PLANS.find(p => p.name === pricing?.tier) || PLANS[1];
-      await ApiService.subscribeToPlan(match.id);
+      // Use ML-recommended plan or fall back to Gold
+      const planId = selectedPlanId || 'policy_02';
+      await ApiService.subscribeToPlan(planId);
       router.replace('/(tabs)');
     } catch (e: any) {
       Alert.alert('Error', e.message);
@@ -238,8 +288,88 @@ export default function OnboardingScreen() {
             </View>
           )}
 
-          {/* ── STEP 2: Personal Details ── */}
+          {/* ── STEP 2: Location Permission ── */}
           {step === 2 && (
+            <View style={styles.stepContainer}>
+              <View style={[styles.logoWrap, { backgroundColor: '#F0FFF4', marginBottom: 8 }]}>
+                <Navigation size={36} color={C.green} />
+              </View>
+              <Text style={styles.stepTitle}>Enable Location</Text>
+              <Text style={styles.stepSubtitle}>
+                Parity uses your GPS to assess real-time weather and traffic risk in your operating zone.
+                This powers your personalised premium — riders in high-disruption zones pay less when risk is priced accurately.
+              </Text>
+
+              <View style={[styles.card, styles.infoCard]}>
+                <View style={styles.infoIconRow}>
+                  <MapPin size={20} color={C.green} />
+                  <Text style={styles.infoCardTitle}>Why We Need Your Location</Text>
+                </View>
+                <Text style={styles.infoCardBody}>
+                  <Text>{'\u2705 '}</Text><Text style={{ fontWeight: '700', color: C.txt1 }}>Personalised premium</Text>
+                  <Text>{' — based on actual rain/heat/traffic in your zone\n'}</Text>
+                  <Text>{'\u2705 '}</Text><Text style={{ fontWeight: '700', color: C.txt1 }}>Zero-touch triggers</Text>
+                  <Text>{' — no manual claim filing when disruption detected\n'}</Text>
+                  <Text>{'\u2705 '}</Text><Text style={{ fontWeight: '700', color: C.txt1 }}>Zone clustering</Text>
+                  <Text>{' — grouped with riders in your area for peer fraud validation\n\n'}</Text>
+                  <Text style={{ color: C.txt3, fontSize: 12 }}>
+                    Location is only captured once during onboarding and during active disruption events. It is never tracked continuously.
+                  </Text>
+                </Text>
+              </View>
+
+              {locationStatus === 'idle' && (
+                <TouchableOpacity style={styles.btnPrimary} onPress={handleRequestLocation} activeOpacity={0.85}>
+                  <Navigation size={18} color="#fff" />
+                  <Text style={styles.btnPrimaryText}>Allow Location Access</Text>
+                </TouchableOpacity>
+              )}
+
+              {locationStatus === 'requesting' && (
+                <View style={[styles.btnPrimary, { opacity: 0.7 }]}>
+                  <ActivityIndicator color="#fff" />
+                  <Text style={styles.btnPrimaryText}>Requesting…</Text>
+                </View>
+              )}
+
+              {locationStatus === 'granted' && (
+                <>
+                  <View style={[styles.card, { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 }]}>
+                    <View style={{ backgroundColor: C.green + '18', borderRadius: 20, padding: 8 }}>
+                      <Check size={20} color={C.green} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: C.green, fontWeight: '700', fontSize: 14 }}>Location Captured</Text>
+                      <Text style={{ color: C.txt3, fontSize: 12, marginTop: 2 }}>
+                        {userLat?.toFixed(4)}°N, {userLng?.toFixed(4)}°E
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity style={[styles.btnPrimary, { backgroundColor: C.green }]} onPress={nextStep} activeOpacity={0.85}>
+                    <Text style={styles.btnPrimaryText}>Continue</Text>
+                    <ChevronRight size={18} color="#fff" />
+                  </TouchableOpacity>
+                </>
+              )}
+
+              {locationStatus === 'denied' && (
+                <>
+                  <View style={[styles.card, { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 }]}>
+                    <Text style={{ color: C.amber, fontSize: 13, flex: 1 }}>
+                      ⚠️ Location denied. You'll get a standard premium instead of a personalised one. You can grant it later in Settings.
+                    </Text>
+                  </View>
+                  <TouchableOpacity style={styles.btnPrimary} onPress={nextStep} activeOpacity={0.85}>
+                    <Text style={styles.btnPrimaryText}>Continue Anyway</Text>
+                    <ChevronRight size={18} color="#fff" />
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          )}
+
+          {/* ── STEP 3: Personal Details ── */}
+          {step === 3 && (
             <View style={styles.stepContainer}>
               <Text style={styles.stepTitle}>Your Details</Text>
               <Text style={styles.stepSubtitle}>
@@ -311,8 +441,8 @@ export default function OnboardingScreen() {
             </View>
           )}
 
-          {/* ── STEP 3: OTP Verification ── */}
-          {step === 3 && (
+          {/* ── STEP 4: OTP Verification ── */}
+          {step === 4 && (
             <View style={styles.stepContainer}>
               <Text style={styles.stepTitle}>Verify Number</Text>
               <Text style={styles.stepSubtitle}>
@@ -355,8 +485,8 @@ export default function OnboardingScreen() {
             </View>
           )}
 
-          {/* ── STEP 4: Platform + Income Proof ── */}
-          {step === 4 && (
+          {/* ── STEP 5: Platform + Income Proof ── */}
+          {step === 5 && (
             <View style={styles.stepContainer}>
               <Text style={styles.stepTitle}>Income Baseline</Text>
               <Text style={styles.stepSubtitle}>
@@ -405,7 +535,9 @@ export default function OnboardingScreen() {
                       <Check size={36} color={C.green} />
                       <Text style={[styles.uploadText, { color: C.green }]}>Income Verified</Text>
                       <Text style={[styles.uploadSubtext, { color: C.green }]}>
-                        ~₹{pricing?.expectedWeeklyIncome?.toLocaleString()}/wk baseline locked
+                        {locationRisk
+                          ? `Risk zone: ${locationRisk.risk_label} — ${locationRisk.data_source === 'historical_7d' ? '7-day' : 'live'} weather used`
+                          : '~₹1,440/wk baseline locked'}
                       </Text>
                     </View>
                   )}
@@ -421,8 +553,8 @@ export default function OnboardingScreen() {
             </View>
           )}
 
-          {/* ── STEP 5: Device Security Handshake ── */}
-          {step === 5 && (
+          {/* ── STEP 6: Device Security Handshake ── */}
+          {step === 6 && (
             <View style={styles.stepContainer}>
               <Text style={styles.stepTitle}>Security Sync</Text>
               <Text style={styles.stepSubtitle}>
@@ -463,35 +595,62 @@ export default function OnboardingScreen() {
             </View>
           )}
 
-          {/* ── STEP 6: Policy Selection + T&C ── */}
-          {step === 6 && pricing && (
+          {/* ── STEP 7: Policy Selection + T&C ── */}
+          {step === 7 && (
             <View style={styles.stepContainer}>
               <Text style={styles.stepTitle}>Choose Your Shield</Text>
               <Text style={styles.stepSubtitle}>
-                Predicted velocity: ₹{pricing.expectedWeeklyIncome?.toLocaleString()}/wk.
-                High-risk zone surcharge active (+₹{pricing.surcharge}).
+                {locationRisk
+                  ? `${locationRisk.risk_label} risk zone · Live weather pricing applied`
+                  : 'Select the plan that fits your income.'}{'\n'}
+                Powered by real OpenWeatherMap data for your location.
               </Text>
 
+              {locationRisk && (
+                <View style={[styles.card, { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }]}>
+                  <Text style={{ fontSize: 20 }}>{locationRisk.risk_label === 'HIGH' ? '🌧️' : locationRisk.risk_label === 'MEDIUM' ? '⛅' : '☀️'}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontWeight: '700', color: C.txt1, fontSize: 13 }}>Live Weather Status</Text>
+                    <Text style={{ color: C.txt3, fontSize: 11.5, marginTop: 2 }}>
+                      Rain: {locationRisk.weather?.current_rain_mm ?? 0}mm · Temp: {locationRisk.weather?.current_temp_c ?? '--'}°C
+                    </Text>
+                  </View>
+                  <View style={{ backgroundColor: locationRisk.risk_label === 'HIGH' ? '#FEF3C7' : '#F0FFF4', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
+                    <Text style={{ fontWeight: '700', fontSize: 12, color: locationRisk.risk_label === 'HIGH' ? C.amber : C.green }}>
+                      {(locationRisk.risk_score * 100).toFixed(0)}% risk
+                    </Text>
+                  </View>
+                </View>
+              )}
+
               <View style={{ gap: 14, marginBottom: 20 }}>
-                {PLANS.map(plan => {
-                  const isRec = plan.name === pricing.tier;
-                  const finalCost = plan.cost + pricing.surcharge;
+                {(mlPlans.length > 0 ? mlPlans : PLANS.map(p => ({ plan: p.name.toUpperCase(), weekly_premium: p.cost, coverage_limit: p.limit }))).map((plan: any, idx: number) => {
+                  const planId = idx === 0 ? 'policy_01' : idx === 1 ? 'policy_02' : 'policy_03';
+                  const isRec = plan.plan === (locationRisk?.recommended_plan ?? 'GOLD');
+                  const isSelected = selectedPlanId === planId;
                   return (
-                    <View key={plan.id} style={[styles.planCard, isRec && styles.planCardActive]}>
+                    <TouchableOpacity
+                      key={plan.plan}
+                      onPress={() => setSelectedPlanId(planId)}
+                      activeOpacity={0.8}
+                      style={[styles.planCard, (isSelected || (!selectedPlanId && isRec)) && styles.planCardActive]}>
                       {isRec && (
                         <View style={styles.recBadge}>
                           <Text style={styles.recText}>Best Match</Text>
                         </View>
                       )}
                       <View style={{ flex: 1 }}>
-                        <Text style={[styles.planName, isRec && { color: C.green }]}>{plan.name}</Text>
-                        <Text style={styles.planLimit}>Covers up to ₹{plan.limit.toLocaleString()}</Text>
+                        <Text style={[styles.planName, isRec && { color: C.green }]}>{plan.plan.charAt(0) + plan.plan.slice(1).toLowerCase()}</Text>
+                        <Text style={styles.planLimit}>Covers up to ₹{plan.coverage_limit?.toLocaleString()}</Text>
+                        {plan.risk_loading > 0 && (
+                          <Text style={{ fontSize: 11, color: C.amber, marginTop: 2 }}>⚡ +{plan.risk_loading}% risk loading applied</Text>
+                        )}
                       </View>
                       <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={styles.planCost}>₹{finalCost}</Text>
+                        <Text style={styles.planCost}>₹{plan.weekly_premium}</Text>
                         <Text style={styles.planFreq}>/week</Text>
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   );
                 })}
               </View>

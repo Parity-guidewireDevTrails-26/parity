@@ -6,6 +6,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Shield, MapPin, Bell, TrendingUp, Zap, Check } from 'lucide-react-native';
 import { ApiService, User } from '@/services/api';
+import { supabase } from '@/utils/supabase';
 
 const { width } = Dimensions.get('window');
 const RADAR_SIZE = 200;
@@ -74,6 +75,40 @@ export default function DashboardScreen() {
 
   useEffect(() => { fetchDashboardData(); }, []);
 
+  // ── Supabase Realtime: live parametric event subscriber ──────────────────
+  useEffect(() => {
+    if (!user) return;
+    const userZone = user.work_zone || 'DEL-SAKET-01';
+
+    const channel = supabase
+      .channel('disruption-alerts')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'parametric_events' },
+        (payload: any) => {
+          const e = payload.new;
+          // Only show alert if event zone matches user's zone and severity exceeds threshold
+          if (e.zone === userZone && e.severity > e.threshold && e.is_active) {
+            const label =
+              e.event_type === 'HEAVY_RAIN' ? `\u26c8 Heavy Rainfall (${e.severity?.toFixed(0)}mm) in ${e.zone}` :
+              e.event_type === 'HEAT_WAVE' ? `\uD83C\uDF21\uFE0F Heat Wave (${e.severity?.toFixed(0)}\u00b0C) in ${e.zone}` :
+              e.event_type === 'MOBILITY_COLLAPSE' ? `\uD83D\uDE97 Traffic Collapse in ${e.zone}` :
+              `\uD83D\uDEA8 Disruption event in ${e.zone}`;
+            setDisruption({
+              title: label,
+              message: 'Your income protection has been automatically initiated.',
+              payout: Math.round(350 + Math.random() * 150), // real value comes from claim-service
+            });
+            setPayoutReady(false);
+            setTimeout(() => setPayoutReady(true), 3000);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
+
   const simulateDisruption = () => {
     if (!activePolicy) {
       alert('You must purchase a plan first!');
@@ -81,20 +116,8 @@ export default function DashboardScreen() {
     }
     setDisruption(MOCK_DISRUPTION);
     setPayoutReady(false);
-    
-    // Simulate Background Fraud Check + Zero Touch Payout
-    setTimeout(() => setPayoutReady(true), 3000); // 3 seconds of "verifying device GPS"
+    setTimeout(() => setPayoutReady(true), 3000);
   };
-
-  // Auto-trigger the disruption for Demo purposes if they bought a plan
-  useEffect(() => {
-    if (activePolicy && !loading) {
-      const timer = setTimeout(() => {
-        simulateDisruption();
-      }, 4000); // Trigger 4 seconds after landing on the dashboard
-      return () => clearTimeout(timer);
-    }
-  }, [activePolicy, loading]);
 
   const dismissDisruption = () => {
     setDisruption(null);
