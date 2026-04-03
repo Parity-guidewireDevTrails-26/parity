@@ -6,13 +6,8 @@ if [ -f .env ]; then
   source .env
 fi
 
-# Build all binaries
-echo "📦 Building services..."
-go build -o bin/user-service ./services/user-service/*.go
-go build -o bin/policy-service ./services/policy-service/*.go
-go build -o bin/claim-service ./services/claim-service/*.go
-go build -o bin/notification-service ./services/notification-service/*.go
-go build -o bin/api-gateway ./services/api-gateway/*.go
+# Make sure to run `go build` for all services before this script, or use Render's Build Command.
+echo "🚦 Launching microservices..."
 
 # Start all services in the background using default layout ports
 echo "🚦 Launching microservices..."
