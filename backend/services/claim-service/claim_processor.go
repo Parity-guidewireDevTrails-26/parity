@@ -1,10 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
+	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"kavach/pkg/database"
@@ -47,10 +52,19 @@ func (cp *ClaimProcessor) createAutoClaim(userID string, event *models.Parametri
 		return fmt.Errorf("no active policy found: %w", err)
 	}
 
-	fraudScore, err := cp.runFraudDetection(userID, event)
-	if err != nil || fraudScore > 0.7 {
-		log.Printf("⚠️ High fraud score (%.2f) for user %s, skipping claim", fraudScore, userID)
-		return fmt.Errorf("fraud detection failed")
+	fraudScore, decision, err := cp.runFraudDetection(userID, event)
+	if err != nil {
+		log.Printf("⚠️ fraud detection failed: %v", err)
+		return fmt.Errorf("fraud detection logic failed")
+	}
+
+	claimStatus := "verified"
+	if decision == "DENIED_FRAUD" {
+		log.Printf("❌ Claim denied due to fraud for user %s", userID)
+		claimStatus = "rejected"
+	} else if decision == "WARNING_MANUAL_REVIEW" {
+		log.Printf("⚠️ Claim sent for manual review for user %s", userID)
+		claimStatus = "manual_review"
 	}
 
 	estimatedLoss, err := cp.calculateIncomeLoss(userID, event.TriggeredAt, time.Now())
@@ -65,7 +79,7 @@ func (cp *ClaimProcessor) createAutoClaim(userID string, event *models.Parametri
 		UserPolicyID:        activePolicy.ID,
 		EventID:             &event.ID,
 		ClaimType:           "auto",
-		Status:              "verified",
+		Status:              claimStatus,
 		EstimatedIncomeLoss: estimatedLoss,
 		PayoutAmount:        payout.PayoutAmount,
 		FraudScore:          fraudScore,
@@ -239,10 +253,11 @@ func (cp *ClaimProcessor) calculateIncomeLoss(userID string, startTime, endTime 
 	return resp.PredictedIncomeLoss, nil
 }
 
-func (cp *ClaimProcessor) runFraudDetection(userID string, event *models.ParametricEvent) (float64, error) {
+func (cp *ClaimProcessor) runFraudDetection(userID string, event *models.ParametricEvent) (float64, string, error) {
+	speedAnomaly := cp.checkSpeedAnomaly(userID)
 	gpsVerified, _ := cp.verifyGPSLocation(userID, event.Zone)
 	deviceIntegrity, _ := cp.checkDeviceIntegrity(userID)
-	claimClustering := cp.checkClaimClustering(event.Zone, event.TriggeredAt)
+	claimClustering := cp.checkClaimClustering(event.Zone, userID)
 
 	// Call ML service fraud scorer
 	type fraudReq struct {
@@ -260,7 +275,7 @@ func (cp *ClaimProcessor) runFraudDetection(userID string, event *models.Paramet
 	reqBody := fraudReq{
 		DeviceIntegrityIssue: !deviceIntegrity,
 		GpsIpMismatch:        !gpsVerified,
-		SpeedUpLocation:      false, // requires heartbeat history
+		SpeedUpLocation:      speedAnomaly,
 		CrowdsourceMismatch:  !claimClustering,
 		TrustScore:           0.9, // TODO: read from users.trust_score
 	}
@@ -268,53 +283,184 @@ func (cp *ClaimProcessor) runFraudDetection(userID string, event *models.Paramet
 	var resp fraudResp
 	if err := mlServiceCall("fraud/score", reqBody, &resp); err != nil {
 		log.Printf("⚠️ ML fraud scoring failed (%v), using local fallback", err)
-		// Local fallback: simple score from 0 to 1
 		score := 0.0
 		if !gpsVerified { score += 0.4 }
 		if !deviceIntegrity { score += 0.3 }
 		if !claimClustering { score += 0.1 }
-		return score, nil
+		if speedAnomaly { score += 0.2 }
+		decision := "VERIFIED"
+		if score >= 0.7 {
+			decision = "DENIED_FRAUD"
+		} else if score >= 0.4 {
+			decision = "WARNING_MANUAL_REVIEW"
+		}
+		return score, decision, nil
 	}
 
 	log.Printf("🛡️ ML fraud score for user %s: %d (%s)", userID, resp.FraudScore, resp.Decision)
 
-	// Normalize 0-9 integer score to 0.0-1.0 float for existing threshold check
 	normalized := float64(resp.FraudScore) / 9.0
-	return normalized, nil
+	return normalized, resp.Decision, nil
+}
+
+// Haversine formula for distance in km
+func distanceKM(lat1, lon1, lat2, lon2 float64) float64 {
+	p := 0.017453292519943295 // math.Pi / 180
+	a := 0.5 - math.Cos((lat2-lat1)*p)/2 + math.Cos(lat1*p)*math.Cos(lat2*p)*(1-math.Cos((lon2-lon1)*p))/2
+	return 12742 * math.Asin(math.Sqrt(a)) // 2 * R; R = 6371 km
 }
 
 func (cp *ClaimProcessor) verifyGPSLocation(userID, zone string) (bool, error) {
-	query := `SELECT work_zone FROM users WHERE id = $1`
-	var workZone sql.NullString
-	err := cp.db.QueryRow(query, userID).Scan(&workZone)
+	// Layer 2: GPS/IP Mismatch
+	query := `SELECT lat, lng, ip_address FROM user_locations WHERE user_id = $1 ORDER BY recorded_at DESC LIMIT 1`
+	var lat, lng float64
+	var ipAddress sql.NullString
+	err := cp.db.QueryRow(query, userID).Scan(&lat, &lng, &ipAddress)
 	if err != nil {
-		return false, err
+		// No heartbeat yet, we can't verify properly. Assume ok for demo if fallback.
+		return true, nil
 	}
 
-	return workZone.Valid && workZone.String == zone, nil
-}
+	if !ipAddress.Valid || ipAddress.String == "127.0.0.1" || ipAddress.String == "::1" || strings.HasPrefix(ipAddress.String, "192.168.") {
+		// Localhot, bypass IP check
+		return true, nil
+	}
 
-func (cp *ClaimProcessor) checkDeviceIntegrity(userID string) (bool, error) {
+	// Make request to ipapi.co
+	resp, err := http.Get(fmt.Sprintf("https://ipapi.co/%s/json/", ipAddress.String))
+	if err != nil {
+		return true, nil
+	}
+	defer resp.Body.Close()
+
+	var ipData struct {
+		Latitude  float64 `json:"latitude"`
+		Longitude float64 `json:"longitude"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&ipData); err != nil {
+		return true, nil
+	}
+
+	if ipData.Latitude == 0 && ipData.Longitude == 0 {
+		return true, nil // API limit or error
+	}
+
+	dist := distanceKM(lat, lng, ipData.Latitude, ipData.Longitude)
+	if dist > 50.0 {
+		log.Printf("🚨 Fraud Layer 2: GPS/IP mismatch! Dist: %.2f km", dist)
+		return false, nil
+	}
+
 	return true, nil
 }
 
-func (cp *ClaimProcessor) checkClaimClustering(zone string, eventTime time.Time) bool {
-	query := `
-		SELECT COUNT(*) as claim_count
-		FROM claims c
-		JOIN parametric_events e ON c.event_id = e.id
-		WHERE e.zone = $1
-		AND e.triggered_at >= $2
-		AND e.triggered_at <= $3
-	`
+func (cp *ClaimProcessor) checkDeviceIntegrity(userID string) (bool, error) {
+	// Layer 1: Device Fingerprint check
+	query := `SELECT device_fingerprint FROM users WHERE id = $1`
+	var fpJSON sql.NullString
+	if err := cp.db.QueryRow(query, userID).Scan(&fpJSON); err != nil {
+		return true, err
+	}
 
-	var claimCount int
-	err := cp.db.QueryRow(query, zone, eventTime.Add(-1*time.Hour), eventTime.Add(1*time.Hour)).Scan(&claimCount)
+	if !fpJSON.Valid {
+		return true, nil
+	}
+
+	var fp struct {
+		HardwareUUID string `json:"hardware_uuid"`
+		RootStatus   bool   `json:"root_status"`
+	}
+	if err := json.Unmarshal([]byte(fpJSON.String), &fp); err != nil {
+		return true, nil
+	}
+
+	if fp.RootStatus {
+		log.Printf("🚨 Fraud Layer 1: Device is rooted (user %s)", userID)
+		return false, nil
+	}
+
+	if fp.HardwareUUID != "" {
+		// Check duplicates
+		var count int
+		cp.db.QueryRow(`
+			SELECT COUNT(*) FROM users 
+			WHERE id != $1 AND device_fingerprint::jsonb ->> 'hardware_uuid' = $2
+		`, userID, fp.HardwareUUID).Scan(&count)
+		if count > 0 {
+			log.Printf("🚨 Fraud Layer 1: hardware_uuid previously used on another account (user %s)", userID)
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+func (cp *ClaimProcessor) checkSpeedAnomaly(userID string) bool {
+	// Layer 4: Speed up location detection
+	query := `SELECT lat, lng, recorded_at FROM user_locations WHERE user_id = $1 ORDER BY recorded_at DESC LIMIT 2`
+	rows, err := cp.db.Query(query, userID)
 	if err != nil {
 		return false
 	}
+	defer rows.Close()
 
-	return claimCount >= 3
+	type locStruct struct {
+		Lat float64
+		Lng float64
+		Ts  time.Time
+	}
+	var locs []locStruct
+
+	for rows.Next() {
+		var l locStruct
+		if err := rows.Scan(&l.Lat, &l.Lng, &l.Ts); err == nil {
+			locs = append(locs, l)
+		}
+	}
+
+	if len(locs) < 2 {
+		return false // Not enough history
+	}
+
+	curr := locs[0]
+	prev := locs[1]
+
+	distKM := distanceKM(prev.Lat, prev.Lng, curr.Lat, curr.Lng)
+	timeHours := curr.Ts.Sub(prev.Ts).Hours()
+
+	if timeHours > 0 {
+		speed := distKM / timeHours
+		if speed > 80.0 {
+			log.Printf("🚨 Fraud Layer 4: Speed anomaly detected! Speed: %.2f km/h", speed)
+			return true
+		}
+	}
+
+	return false
+}
+
+func (cp *ClaimProcessor) checkClaimClustering(zone string, userID string) bool {
+	// Layer 3: Crowdsource confidence
+	query := `
+		SELECT COUNT(*) 
+		FROM users u
+		JOIN user_policies up ON u.id = up.user_id
+		WHERE u.work_zone = $1 
+		AND up.status = 'active'
+		AND u.last_active_at > NOW() - INTERVAL '1 hour'
+		AND u.id != $2
+	`
+	var activeOthers int
+	if err := cp.db.QueryRow(query, zone, userID).Scan(&activeOthers); err != nil {
+		return false
+	}
+
+	if activeOthers == 0 {
+		log.Printf("🚨 Fraud Layer 3: Crowdsource mismatch! User %s is claiming disruption but no one else is active in %s", userID, zone)
+		return false // Count = 0 -> mismatch = true -> returns false (fraudulent)
+	}
+
+	return true // Has peers
 }
 
 func (cp *ClaimProcessor) getActiveUsersInZone(zone string) ([]string, error) {
@@ -399,11 +545,19 @@ func (cp *ClaimProcessor) saveClaim(claim *models.Claim) error {
 func (cp *ClaimProcessor) processPayout(claim *models.Claim) error {
 	now := time.Now()
 	claim.PaidAt = &now
+
+	// Wait, if fraud decision was DENIED_FRAUD, it shouldn't be paid.
+	if claim.Status == "rejected" || claim.Status == "manual_review" {
+		log.Printf("ℹ️ Claim %s is %s, skipping payout.", claim.ID, claim.Status)
+		return nil
+	}
+
 	claim.Status = "paid"
+	mockTxID := fmt.Sprintf("pay_%d_RAZORPAY_SIM", time.Now().Unix())
 
 	query := `
-		UPDATE claims
-		SET status = 'paid', paid_at = $1, updated_at = $2
+		UPDATE claims 
+		SET status = 'paid', paid_at = $1, updated_at = $2 
 		WHERE id = $3
 	`
 
@@ -412,7 +566,33 @@ func (cp *ClaimProcessor) processPayout(claim *models.Claim) error {
 		return err
 	}
 
-	log.Printf("💸 Mock payout processed: ₹%.2f sent to user %s", claim.PayoutAmount, claim.UserID)
+	log.Printf("💸 [RAZORPAY SIMULATION] Payout processed successfully!")
+	log.Printf("   User   : %s", claim.UserID)
+	log.Printf("   Amount : ₹%.2f", claim.PayoutAmount)
+	log.Printf("   TxID   : %s", mockTxID)
+
+	// Send Push Notification via notification-service
+	go func(uID string, amount float64) {
+		message := fmt.Sprintf("₹%.0f credited to your account. Your parametric disruption claim has been auto-resolved.", amount)
+		payload := map[string]string{
+			"user_id": uID,
+			"type":    "claim_payout",
+			"title":   "Parity Payout Credited",
+			"message": message,
+		}
+		
+		jsonPayload, _ := json.Marshal(payload)
+		notifyURL := os.Getenv("NOTIFICATION_SERVICE_URL")
+		if notifyURL == "" {
+			notifyURL = "http://localhost:8084"
+		}
+		
+		resp, err := http.Post(notifyURL + "/api/v1/notifications/send", "application/json", bytes.NewBuffer(jsonPayload))
+		if err == nil {
+			resp.Body.Close()
+		}
+	}(claim.UserID, claim.PayoutAmount)
 
 	return nil
 }
+

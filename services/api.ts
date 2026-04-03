@@ -134,7 +134,7 @@ export class ApiService {
   }
 
   static async updateProfile(updates: {
-    work_zone?: string; name?: string; platform?: string; work_city?: string;
+    work_zone?: string; name?: string; platform?: string; work_city?: string; expo_push_token?: string;
   }) {
     if (!this.token) throw new Error('Not authenticated');
     await apiCall(
@@ -144,6 +144,7 @@ export class ApiService {
     );
     return { success: true };
   }
+
 
   // ── Policies ──────────────────────────────────────────────────────────────
   static async getPolicies(): Promise<{ policies: Policy[] }> {

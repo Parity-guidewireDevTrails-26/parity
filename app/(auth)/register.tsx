@@ -11,6 +11,7 @@ import {
 } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import Svg, { Rect, Circle } from 'react-native-svg';
+import * as Notifications from 'expo-notifications';
 import { ApiService, DeviceFingerprint } from '@/services/api';
 import { calculatePremium } from '@/utils/pricing';
 import { detectFraud } from '@/utils/fraud';
@@ -170,6 +171,17 @@ export default function OnboardingScreen() {
     setTimeout(() => { setLoading(false); setSecurityDone(true); }, 1500);
   };
 
+  const getPushToken = async () => {
+    try {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') return undefined;
+      const { data } = await Notifications.getExpoPushTokenAsync();
+      return data;
+    } catch {
+      return undefined;
+    }
+  };
+
   const handleBuyNow = async () => {
     if (!acceptedTnc) return Alert.alert('Please Accept', 'You must accept the Terms & Conditions.');
     setLoading(true);
@@ -182,6 +194,11 @@ export default function OnboardingScreen() {
         password: '1234',
         device_fingerprint: fingerprint,
       });
+      const pushToken = await getPushToken();
+      if (pushToken) {
+        await ApiService.updateProfile({ expo_push_token: pushToken });
+      }
+      
       // Use ML-recommended plan or fall back to Gold
       const planId = selectedPlanId || 'policy_02';
       await ApiService.subscribeToPlan(planId);
@@ -204,6 +221,10 @@ export default function OnboardingScreen() {
         password: '1234',
         device_fingerprint: fingerprint,
       });
+      const pushToken = await getPushToken();
+      if (pushToken) {
+        await ApiService.updateProfile({ expo_push_token: pushToken });
+      }
       router.replace('/(tabs)');
     } catch (e: any) {
       Alert.alert('Error', e.message);
@@ -211,6 +232,7 @@ export default function OnboardingScreen() {
       setLoading(false);
     }
   };
+
 
   // ── Layout helpers ───────────────────────────────────────────────────────────
   const progress = (step / TOTAL_STEPS) * 100;

@@ -37,6 +37,10 @@ func main() {
 	router.GET("/api/v1/users/profile", middleware.AuthMiddleware(), getUserProfile)
 	router.PUT("/api/v1/users/profile", middleware.AuthMiddleware(), updateUserProfile)
 
+	// Phase 4: GPS heartbeat for fraud tracking
+	initHeartbeatTable()
+	router.POST("/api/v1/users/heartbeat", middleware.AuthMiddleware(), recordHeartbeat)
+
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "healthy", "service": "user-service"})
 	})
@@ -208,8 +212,9 @@ func updateUserProfile(c *gin.Context) {
 	allowedFields := map[string]string{
 		"name":      "name",
 		"work_zone": "work_zone",
-		"work_city": "work_city",
-		"platform":  "platform",
+		"work_city":       "work_city",
+		"platform":        "platform",
+		"expo_push_token": "expo_push_token",
 	}
 
 	for key, col := range allowedFields {
