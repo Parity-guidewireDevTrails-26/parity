@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
 	"time"
 
 	"kavach/pkg/database"
 	"kavach/pkg/models"
 )
+
 
 type ClaimProcessor struct {
 	db *sql.DB
@@ -88,20 +88,68 @@ func (cp *ClaimProcessor) createAutoClaim(userID string, event *models.Parametri
 }
 
 func (cp *ClaimProcessor) calculatePayout(estimatedLoss, coverageLimit float64) *models.PayoutCalculation {
-	payoutAmount := math.Min(estimatedLoss, coverageLimit)
+	// Delegate to ML service for authoritative payout formula
+	type payoutReq struct {
+		PredictedLoss   float64 `json:"predicted_loss"`
+		ExpectedIncome  float64 `json:"expected_income"`
+		FraudDecision   string  `json:"fraud_decision"`
+		ClaimTriggered  bool    `json:"claim_triggered"`
+		Plan            string  `json:"plan"`
+		CoverageLimit   float64 `json:"coverage_limit"`
+	}
+	type payoutResp struct {
+		Payout      float64 `json:"payout"`
+		Deductible  float64 `json:"deductible"`
+		NetLoss     float64 `json:"net_loss"`
+		CoverageCap float64 `json:"coverage_cap"`
+		Reason      string  `json:"reason"`
+	}
+
+	reqBody := payoutReq{
+		PredictedLoss:  estimatedLoss,
+		ExpectedIncome: estimatedLoss * 2, // estimate; ideally from income_history
+		FraudDecision:  "VERIFIED",
+		ClaimTriggered: true,
+		Plan:           "GOLD",
+		CoverageLimit:  coverageLimit,
+	}
+
+	var resp payoutResp
+	if err := mlServiceCall("payout/calculate", reqBody, &resp); err != nil {
+		log.Printf("⚠️ ML payout failed (%v), using min formula", err)
+		amount := estimatedLoss
+		if amount > coverageLimit {
+			amount = coverageLimit
+		}
+		return &models.PayoutCalculation{
+			EstimatedLoss: estimatedLoss,
+			CoverageLimit: coverageLimit,
+			PayoutAmount:  amount,
+			Formula:       "min(estimated_loss, coverage_limit) [fallback]",
+		}
+	}
 
 	return &models.PayoutCalculation{
 		EstimatedLoss: estimatedLoss,
 		CoverageLimit: coverageLimit,
-		PayoutAmount:  payoutAmount,
-		Formula:       "min(estimated_loss, coverage_limit)",
+		PayoutAmount:  resp.Payout,
+		Formula:       "ml_service: " + resp.Reason,
 	}
 }
 
 func (cp *ClaimProcessor) calculateIncomeLoss(userID string, startTime, endTime time.Time) (float64, error) {
+	// Fetch rider's income history for baseline features
+	type incomeRow struct {
+		AvgHourlyRate   float64
+		AvgOrdersPerHour float64
+		AvgHoursPerDay  float64
+	}
+
 	query := `
 		SELECT
-			AVG(total_earnings / NULLIF(hours_worked, 0)) as avg_hourly_rate
+			AVG(total_earnings / NULLIF(hours_worked, 0)) as avg_hourly_rate,
+			AVG(CAST(deliveries_count AS FLOAT) / NULLIF(hours_worked, 0)) as avg_orders_per_hour,
+			AVG(hours_worked) as avg_hours_per_day
 		FROM income_history
 		WHERE user_id = $1
 		AND date >= $2
@@ -109,11 +157,31 @@ func (cp *ClaimProcessor) calculateIncomeLoss(userID string, startTime, endTime 
 		LIMIT 30
 	`
 
-	var avgHourlyRate sql.NullFloat64
-	err := cp.db.QueryRow(query, userID, time.Now().AddDate(0, 0, -30)).Scan(&avgHourlyRate)
-	if err != nil || !avgHourlyRate.Valid {
-		log.Printf("⚠️ No income history found for user %s, using default rate", userID)
-		avgHourlyRate.Float64 = 150.0
+	var avgHourlyRate, avgOrdersPerHour, avgHoursPerDay sql.NullFloat64
+	err := cp.db.QueryRow(query, userID, time.Now().AddDate(0, 0, -30)).
+		Scan(&avgHourlyRate, &avgOrdersPerHour, &avgHoursPerDay)
+
+	// Default values if no income history yet
+	hourlyRate := 150.0
+	ordersPerHour := 2.5
+	hoursPerDay := 8.0
+	earningsPerOrder := 60.0
+
+	if err == nil {
+		if avgHourlyRate.Valid && avgHourlyRate.Float64 > 0 {
+			hourlyRate = avgHourlyRate.Float64
+		}
+		if avgOrdersPerHour.Valid && avgOrdersPerHour.Float64 > 0 {
+			ordersPerHour = avgOrdersPerHour.Float64
+		}
+		if avgHoursPerDay.Valid && avgHoursPerDay.Float64 > 0 {
+			hoursPerDay = avgHoursPerDay.Float64
+		}
+		if ordersPerHour > 0 {
+			earningsPerOrder = hourlyRate / ordersPerHour
+		}
+	} else {
+		log.Printf("⚠️ No income history for user %s, using defaults", userID)
 	}
 
 	disruptionHours := endTime.Sub(startTime).Hours()
@@ -121,38 +189,98 @@ func (cp *ClaimProcessor) calculateIncomeLoss(userID string, startTime, endTime 
 		disruptionHours = 8
 	}
 
-	estimatedLoss := avgHourlyRate.Float64 * disruptionHours
+	expectedIncome := hoursPerDay * ordersPerHour * earningsPerOrder
 
-	log.Printf("💰 Income loss calculation: ₹%.2f/hr × %.2f hrs = ₹%.2f",
-		avgHourlyRate.Float64, disruptionHours, estimatedLoss)
+	// Call ML service with rider profile + disruption context
+	type predictReq struct {
+		HoursPerDay          float64 `json:"hours_per_day"`
+		OrdersPerHour        float64 `json:"orders_per_hour"`
+		DaysPerWeek          float64 `json:"days_per_week"`
+		EarningsPerOrder     float64 `json:"earnings_per_order"`
+		RainfallMm           float64 `json:"rainfall_mm"`
+		RestaurantDensity    float64 `json:"restaurant_density"`
+		PeakHourRatio        float64 `json:"peak_hour_ratio"`
+		PlatformDemandIndex  float64 `json:"platform_demand_index"`
+		SurgeMultiplier      float64 `json:"surge_multiplier"`
+		Aqi                  float64 `json:"aqi"`
+		Temperature          float64 `json:"temperature"`
+		ExpectedIncome       float64 `json:"expected_income"`
+	}
+	type predictResp struct {
+		PredictedIncomeLoss float64 `json:"predicted_income_loss"`
+		ExpectedIncome      float64 `json:"expected_income"`
+		RiskScore           float64 `json:"risk_score"`
+		Method              string  `json:"method"`
+	}
 
-	return estimatedLoss, nil
+	reqBody := predictReq{
+		HoursPerDay:         hoursPerDay,
+		OrdersPerHour:       ordersPerHour,
+		DaysPerWeek:         5,
+		EarningsPerOrder:    earningsPerOrder,
+		RainfallMm:          0,   // enriched by caller from event data
+		RestaurantDensity:   0.6,
+		PeakHourRatio:       0.4,
+		PlatformDemandIndex: 1.0,
+		SurgeMultiplier:     1.0,
+		Aqi:                 100,
+		Temperature:         32,
+		ExpectedIncome:      expectedIncome,
+	}
+
+	var resp predictResp
+	if err := mlServiceCall("predict", reqBody, &resp); err != nil {
+		log.Printf("⚠️ ML prediction failed (%v), using hourly formula", err)
+		return hourlyRate * disruptionHours, nil
+	}
+
+	log.Printf("🤖 ML income loss: ₹%.2f (method: %s, risk: %.2f)",
+		resp.PredictedIncomeLoss, resp.Method, resp.RiskScore)
+	return resp.PredictedIncomeLoss, nil
 }
 
 func (cp *ClaimProcessor) runFraudDetection(userID string, event *models.ParametricEvent) (float64, error) {
-	fraudScore := 0.0
-
-	gpsVerified, err := cp.verifyGPSLocation(userID, event.Zone)
-	if err != nil || !gpsVerified {
-		fraudScore += 0.5
-	}
-
-	deviceIntegrity, err := cp.checkDeviceIntegrity(userID)
-	if err != nil || !deviceIntegrity {
-		fraudScore += 0.3
-	}
-
+	gpsVerified, _ := cp.verifyGPSLocation(userID, event.Zone)
+	deviceIntegrity, _ := cp.checkDeviceIntegrity(userID)
 	claimClustering := cp.checkClaimClustering(event.Zone, event.TriggeredAt)
-	if claimClustering {
-		fraudScore -= 0.2
+
+	// Call ML service fraud scorer
+	type fraudReq struct {
+		DeviceIntegrityIssue bool    `json:"device_integrity_issue"`
+		GpsIpMismatch        bool    `json:"gps_ip_mismatch"`
+		SpeedUpLocation      bool    `json:"speed_up_location"`
+		CrowdsourceMismatch  bool    `json:"crowdsource_mismatch"`
+		TrustScore           float64 `json:"trust_score"`
+	}
+	type fraudResp struct {
+		FraudScore int    `json:"fraud_score"`
+		Decision   string `json:"decision"`
 	}
 
-	if fraudScore < 0 {
-		fraudScore = 0
+	reqBody := fraudReq{
+		DeviceIntegrityIssue: !deviceIntegrity,
+		GpsIpMismatch:        !gpsVerified,
+		SpeedUpLocation:      false, // requires heartbeat history
+		CrowdsourceMismatch:  !claimClustering,
+		TrustScore:           0.9, // TODO: read from users.trust_score
 	}
 
-	log.Printf("🛡️ Fraud detection score for user %s: %.2f", userID, fraudScore)
-	return fraudScore, nil
+	var resp fraudResp
+	if err := mlServiceCall("fraud/score", reqBody, &resp); err != nil {
+		log.Printf("⚠️ ML fraud scoring failed (%v), using local fallback", err)
+		// Local fallback: simple score from 0 to 1
+		score := 0.0
+		if !gpsVerified { score += 0.4 }
+		if !deviceIntegrity { score += 0.3 }
+		if !claimClustering { score += 0.1 }
+		return score, nil
+	}
+
+	log.Printf("🛡️ ML fraud score for user %s: %d (%s)", userID, resp.FraudScore, resp.Decision)
+
+	// Normalize 0-9 integer score to 0.0-1.0 float for existing threshold check
+	normalized := float64(resp.FraudScore) / 9.0
+	return normalized, nil
 }
 
 func (cp *ClaimProcessor) verifyGPSLocation(userID, zone string) (bool, error) {

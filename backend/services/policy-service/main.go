@@ -15,8 +15,10 @@ import (
 )
 
 func main() {
-	if err := godotenv.Load("../../.env"); err != nil {
-		log.Println("⚠️ No .env file found, using environment variables")
+	if os.Getenv("RAILWAY_ENVIRONMENT") == "" {
+		if err := godotenv.Load("../../.env"); err != nil {
+			log.Println("⚠️ No .env file found, using environment variables")
+		}
 	}
 
 	if err := database.InitPostgres(); err != nil {

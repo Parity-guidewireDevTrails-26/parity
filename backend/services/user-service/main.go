@@ -2,9 +2,11 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"kavach/pkg/database"
 	"kavach/pkg/middleware"
@@ -16,8 +18,10 @@ import (
 )
 
 func main() {
-	if err := godotenv.Load("../../.env"); err != nil {
-		log.Println("⚠️ No .env file found, using environment variables")
+	if os.Getenv("RAILWAY_ENVIRONMENT") == "" {
+		if err := godotenv.Load("../../.env"); err != nil {
+			log.Println("⚠️ No .env file found, using environment variables")
+		}
 	}
 
 	if err := database.InitPostgres(); err != nil {
@@ -46,8 +50,18 @@ func main() {
 	router.Run(":" + port)
 }
 
+// RegisterRequest extends UserRegistration with device fingerprint
+type RegisterRequest struct {
+	PhoneNumber       string          `json:"phone_number" binding:"required"`
+	Name              string          `json:"name" binding:"required"`
+	Platform          string          `json:"platform" binding:"required"`
+	WorkCity          string          `json:"work_city" binding:"required"`
+	Password          string          `json:"password" binding:"required"`
+	DeviceFingerprint json.RawMessage `json:"device_fingerprint"`
+}
+
 func registerUser(c *gin.Context) {
-	var req models.UserRegistration
+	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -59,17 +73,27 @@ func registerUser(c *gin.Context) {
 		return
 	}
 
+	// Serialize device fingerprint to string for storage
+	fingerprintJSON := "{}"
+	if req.DeviceFingerprint != nil {
+		fingerprintJSON = string(req.DeviceFingerprint)
+	}
+
 	query := `
-		INSERT INTO users (phone_number, name, platform, work_city, password_hash)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, phone_number, name, platform, work_city, created_at
+		INSERT INTO users (phone_number, name, platform, work_city, password_hash, device_fingerprint, is_verified, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, true, NOW(), NOW())
+		RETURNING id, phone_number, name, platform, work_city, is_verified, created_at
 	`
 
 	var user models.User
-	err = database.DB.QueryRow(query, req.PhoneNumber, req.Name, req.Platform, req.WorkCity, hashedPassword).
-		Scan(&user.ID, &user.PhoneNumber, &user.Name, &user.Platform, &user.WorkCity, &user.CreatedAt)
+	err = database.DB.QueryRow(query,
+		req.PhoneNumber, req.Name, req.Platform,
+		req.WorkCity, string(hashedPassword), fingerprintJSON,
+	).Scan(&user.ID, &user.PhoneNumber, &user.Name, &user.Platform,
+		&user.WorkCity, &user.IsVerified, &user.CreatedAt)
 
 	if err != nil {
+		log.Printf("Register error: %v", err)
 		c.JSON(http.StatusConflict, gin.H{"error": "Phone number already registered"})
 		return
 	}
@@ -95,7 +119,7 @@ func loginUser(c *gin.Context) {
 	}
 
 	query := `
-		SELECT id, phone_number, name, platform, work_city, password_hash, created_at
+		SELECT id, phone_number, name, platform, work_city, password_hash, is_verified, created_at
 		FROM users
 		WHERE phone_number = $1
 	`
@@ -104,7 +128,7 @@ func loginUser(c *gin.Context) {
 	var passwordHash string
 	err := database.DB.QueryRow(query, req.PhoneNumber).Scan(
 		&user.ID, &user.PhoneNumber, &user.Name, &user.Platform,
-		&user.WorkCity, &passwordHash, &user.CreatedAt,
+		&user.WorkCity, &passwordHash, &user.IsVerified, &user.CreatedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -138,16 +162,18 @@ func getUserProfile(c *gin.Context) {
 
 	query := `
 		SELECT id, phone_number, name, platform, work_city, work_zone,
-		       is_verified, created_at, updated_at
+		       is_verified, device_fingerprint, created_at, updated_at
 		FROM users
 		WHERE id = $1
 	`
 
 	var user models.User
 	var workZone sql.NullString
+	var deviceFP sql.NullString
 	err := database.DB.QueryRow(query, userID).Scan(
 		&user.ID, &user.PhoneNumber, &user.Name, &user.Platform,
-		&user.WorkCity, &workZone, &user.IsVerified, &user.CreatedAt, &user.UpdatedAt,
+		&user.WorkCity, &workZone, &user.IsVerified, &deviceFP,
+		&user.CreatedAt, &user.UpdatedAt,
 	)
 
 	if err != nil {
@@ -157,6 +183,9 @@ func getUserProfile(c *gin.Context) {
 
 	if workZone.Valid {
 		user.WorkZone = workZone.String
+	}
+	if deviceFP.Valid {
+		user.DeviceFingerprint = deviceFP.String
 	}
 
 	c.JSON(http.StatusOK, gin.H{"user": user})
@@ -171,13 +200,34 @@ func updateUserProfile(c *gin.Context) {
 		return
 	}
 
-	if workZone, ok := updates["work_zone"].(string); ok {
-		query := `UPDATE users SET work_zone = $1, updated_at = NOW() WHERE id = $2`
-		_, err := database.DB.Exec(query, workZone, userID)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profile"})
-			return
+	// Build dynamic update — only touch provided fields
+	setClauses := "updated_at = $1"
+	args := []interface{}{time.Now()}
+	argIdx := 2
+
+	allowedFields := map[string]string{
+		"name":      "name",
+		"work_zone": "work_zone",
+		"work_city": "work_city",
+		"platform":  "platform",
+	}
+
+	for key, col := range allowedFields {
+		if val, ok := updates[key]; ok {
+			setClauses += ", " + col + " = $" + string(rune('0'+argIdx))
+			args = append(args, val)
+			argIdx++
 		}
+	}
+
+	args = append(args, userID)
+	query := "UPDATE users SET " + setClauses + " WHERE id = $" + string(rune('0'+argIdx))
+
+	_, err := database.DB.Exec(query, args...)
+	if err != nil {
+		log.Printf("Update profile error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profile"})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully"})
