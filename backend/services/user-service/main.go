@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -219,14 +220,14 @@ func updateUserProfile(c *gin.Context) {
 
 	for key, col := range allowedFields {
 		if val, ok := updates[key]; ok {
-			setClauses += ", " + col + " = $" + string(rune('0'+argIdx))
+			setClauses += fmt.Sprintf(", %s = $%d", col, argIdx)
 			args = append(args, val)
 			argIdx++
 		}
 	}
 
 	args = append(args, userID)
-	query := "UPDATE users SET " + setClauses + " WHERE id = $" + string(rune('0'+argIdx))
+	query := fmt.Sprintf("UPDATE users SET %s WHERE id = $%d", setClauses, argIdx)
 
 	_, err := database.DB.Exec(query, args...)
 	if err != nil {

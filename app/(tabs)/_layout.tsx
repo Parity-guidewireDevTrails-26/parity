@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Hop as Home, Shield, FileText, User } from 'lucide-react-native';
+import { Home, Shield, FileText, User } from 'lucide-react-native';
 
 export default function TabLayout() {
   return (

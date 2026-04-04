@@ -8,6 +8,9 @@ import { Shield, MapPin, Bell, TrendingUp, Zap, Check } from 'lucide-react-nativ
 import { ApiService, User } from '@/services/api';
 import { supabase } from '@/utils/supabase';
 
+// Helper to check if Supabase is actually configured
+const isSupabaseConfigured = !!process.env.EXPO_PUBLIC_SUPABASE_URL && !!process.env.EXPO_PUBLIC_SUPABASE_KEY;
+
 const { width } = Dimensions.get('window');
 const RADAR_SIZE = 200;
 
@@ -77,36 +80,39 @@ export default function DashboardScreen() {
 
   // ── Supabase Realtime: live parametric event subscriber ──────────────────
   useEffect(() => {
-    if (!user) return;
+    if (!user || !isSupabaseConfigured) return;
     const userZone = user.work_zone || 'DEL-SAKET-01';
 
-    const channel = supabase
-      .channel('disruption-alerts')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'parametric_events' },
-        (payload: any) => {
-          const e = payload.new;
-          // Only show alert if event zone matches user's zone and severity exceeds threshold
-          if (e.zone === userZone && e.severity > e.threshold && e.is_active) {
-            const label =
-              e.event_type === 'HEAVY_RAIN' ? `\u26c8 Heavy Rainfall (${e.severity?.toFixed(0)}mm) in ${e.zone}` :
-              e.event_type === 'HEAT_WAVE' ? `\uD83C\uDF21\uFE0F Heat Wave (${e.severity?.toFixed(0)}\u00b0C) in ${e.zone}` :
-              e.event_type === 'MOBILITY_COLLAPSE' ? `\uD83D\uDE97 Traffic Collapse in ${e.zone}` :
-              `\uD83D\uDEA8 Disruption event in ${e.zone}`;
-            setDisruption({
-              title: label,
-              message: 'Your income protection has been automatically initiated.',
-              payout: Math.round(350 + Math.random() * 150), // real value comes from claim-service
-            });
-            setPayoutReady(false);
-            setTimeout(() => setPayoutReady(true), 3000);
+    try {
+      const channel = supabase
+        .channel('disruption-alerts')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'parametric_events' },
+          (payload: any) => {
+            const e = payload.new;
+            if (e.zone === userZone && e.severity > e.threshold && e.is_active) {
+              const label =
+                e.event_type === 'HEAVY_RAIN' ? `\u26c8 Heavy Rainfall (${e.severity?.toFixed(0)}mm) in ${e.zone}` :
+                e.event_type === 'HEAT_WAVE' ? `\uD83C\uDF21\uFE0F Heat Wave (${e.severity?.toFixed(0)}\u00b0C) in ${e.zone}` :
+                e.event_type === 'MOBILITY_COLLAPSE' ? `\uD83D\uDE97 Traffic Collapse in ${e.zone}` :
+                `\uD83D\uDEA8 Disruption event in ${e.zone}`;
+              setDisruption({
+                title: label,
+                message: 'Your income protection has been automatically initiated.',
+                payout: Math.round(350 + Math.random() * 150),
+              });
+              setPayoutReady(false);
+              setTimeout(() => setPayoutReady(true), 3000);
+            }
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+      return () => { supabase.removeChannel(channel); };
+    } catch (e) {
+      console.warn('Supabase Realtime subscription failed:', e);
+    }
   }, [user]);
 
   const simulateDisruption = () => {
@@ -187,8 +193,8 @@ export default function DashboardScreen() {
             <View style={styles.incomeCardTop}>
               <View>
                 <Text style={styles.incomeLabel}>EARNINGS PROTECTED</Text>
-                <Text style={styles.incomeAmount}>₹{activePolicy.coverage_limit.toLocaleString()}</Text>
-                <Text style={styles.incomeMeta}>{activePolicy.policy_name} Plan · Active</Text>
+                <Text style={styles.incomeAmount}>₹{(activePolicy.coverage_limit ?? 0).toLocaleString()}</Text>
+                <Text style={styles.incomeMeta}>{activePolicy.policy_name || 'Policy'} Plan · Active</Text>
               </View>
               <View style={[styles.activePill, { backgroundColor: C.green + '18' }]}>
                 <View style={[styles.activeDot, { backgroundColor: C.green }]} />
