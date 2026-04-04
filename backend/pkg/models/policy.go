@@ -32,5 +32,5 @@ type UserPolicy struct {
 
 type PolicySubscription struct {
 	PolicyID string `json:"policy_id" binding:"required"`
-	UserID   string `json:"user_id" binding:"required"`
+	UserID   string `json:"user_id"`
 }
