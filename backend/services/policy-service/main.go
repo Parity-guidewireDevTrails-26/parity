@@ -48,7 +48,7 @@ func main() {
 
 func getPolicies(c *gin.Context) {
 	query := `
-		SELECT id, name, weekly_premium, coverage_limit, description, exclusions, is_active
+		SELECT id, name, weekly_premium, coverage_limit, description, exclusions, is_active, payout_rate, duration_days
 		FROM policies
 		WHERE is_active = true
 		ORDER BY weekly_premium ASC
@@ -64,7 +64,8 @@ func getPolicies(c *gin.Context) {
 	var policies []models.Policy
 	for rows.Next() {
 		var policy models.Policy
-		if err := rows.Scan(&policy.ID, &policy.Name, &policy.WeeklyPremium, &policy.CoverageLimit, &policy.Description, &policy.Exclusions, &policy.IsActive); err != nil {
+		if err := rows.Scan(&policy.ID, &policy.Name, &policy.WeeklyPremium, &policy.CoverageLimit, &policy.Description, &policy.Exclusions, &policy.IsActive, &policy.PayoutRate, &policy.DurationDays); err != nil {
+			log.Printf("Scan policy error: %v", err)
 			continue
 		}
 		policies = append(policies, policy)
@@ -126,7 +127,7 @@ func getActivePolicy(c *gin.Context) {
 
 	query := `
 		SELECT up.id, up.policy_id, p.name, up.status, up.start_date, up.end_date,
-		       up.premium_paid, up.coverage_limit, up.created_at
+		       up.premium_paid, up.coverage_limit, up.created_at, p.payout_rate, p.duration_days
 		FROM user_policies up
 		JOIN policies p ON up.policy_id = p.id
 		WHERE up.user_id = $1
@@ -146,12 +147,14 @@ func getActivePolicy(c *gin.Context) {
 		PremiumPaid   float64   `json:"premium_paid"`
 		CoverageLimit float64   `json:"coverage_limit"`
 		CreatedAt     time.Time `json:"created_at"`
+		PayoutRate    float64   `json:"payout_rate"`
+		DurationDays  int       `json:"duration_days"`
 	}
 
 	err := database.DB.QueryRow(query, userID).Scan(
 		&result.ID, &result.PolicyID, &result.PolicyName, &result.Status,
 		&result.StartDate, &result.EndDate, &result.PremiumPaid,
-		&result.CoverageLimit, &result.CreatedAt,
+		&result.CoverageLimit, &result.CreatedAt, &result.PayoutRate, &result.DurationDays,
 	)
 
 	if err != nil {

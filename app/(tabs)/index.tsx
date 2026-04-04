@@ -205,13 +205,32 @@ export default function DashboardScreen() {
               <View>
                 <Text style={styles.incomeLabel}>EARNINGS PROTECTED</Text>
                 <Text style={styles.incomeAmount}>₹{(activePolicy.coverage_limit ?? 0).toLocaleString()}</Text>
-                <Text style={styles.incomeMeta}>{activePolicy.policy_name || 'Policy'} Plan · Active</Text>
+                <Text style={styles.incomeMeta}>{(activePolicy.policy_name || 'Policy')} Plan · Active</Text>
               </View>
               <View style={[styles.activePill, { backgroundColor: C.green + '18' }]}>
                 <View style={[styles.activeDot, { backgroundColor: C.green }]} />
                 <Text style={[styles.activePillText, { color: C.green }]}>ON</Text>
               </View>
             </View>
+
+            <View style={styles.incomeDivider} />
+            <View style={styles.incomeMetrics}>
+              <View style={styles.metricItem}>
+                <Text style={styles.metricLabel}>MATCH RATE</Text>
+                <Text style={styles.metricValue}>{((activePolicy.payout_rate ?? 0.20) * 100).toFixed(0)}%</Text>
+              </View>
+              <View style={styles.metricDivider} />
+              <View style={styles.metricItem}>
+                <Text style={styles.metricLabel}>DURATION</Text>
+                <Text style={styles.metricValue}>{activePolicy.duration_days ?? 7} Days</Text>
+              </View>
+              <View style={styles.metricDivider} />
+              <View style={styles.metricItem}>
+                <Text style={styles.metricLabel}>WAIT TIME</Text>
+                <Text style={styles.metricValue}>Instant</Text>
+              </View>
+            </View>
+
 
             {/* Weekly progress bar */}
             <Text style={styles.progressLabel}>Weekly Cycle</Text>
@@ -380,6 +399,15 @@ const styles = StyleSheet.create({
     backgroundColor: C.bgCard, borderWidth: 1, borderColor: C.border,
   },
   simulateBtnText: { color: C.txt2, fontSize: 14, fontWeight: '600' },
+
+  // New Income Card Styles
+  incomeDivider: { height: 1, backgroundColor: C.border, marginVertical: 18 },
+  incomeMetrics: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  metricItem: { flex: 1, alignItems: 'center' },
+  metricLabel: { fontSize: 10, color: C.txt3, fontWeight: '700', marginBottom: 4 },
+  metricValue: { fontSize: 16, fontWeight: '700', color: C.txt1 },
+  metricDivider: { width: 1, height: 24, backgroundColor: C.border },
+
 
   // Alert banner — Apple-style, anchored at bottom
   alertBanner: {

@@ -70,10 +70,25 @@ async function apiCall<T>(
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-  return data as T;
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+  try {
+    const res = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers,
+      signal: controller.signal
+    });
+    clearTimeout(id);
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+    return data as T;
+  } catch (err: any) {
+    clearTimeout(id);
+    if (err.name === 'AbortError') throw new Error('Request timed out after 10 seconds');
+    throw err;
+  }
 }
 
 export class ApiService {

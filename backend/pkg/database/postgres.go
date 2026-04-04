@@ -32,10 +32,13 @@ func InitPostgres() error {
 		return fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	// Make sure the users table has expo_push_token
-	_, err = DB.Exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS expo_push_token TEXT;`)
+	_, err = DB.Exec(`
+		ALTER TABLE users ADD COLUMN IF NOT EXISTS expo_push_token TEXT;
+		ALTER TABLE policies ADD COLUMN IF NOT EXISTS payout_rate DOUBLE PRECISION DEFAULT 0.20;
+		ALTER TABLE policies ADD COLUMN IF NOT EXISTS duration_days INTEGER DEFAULT 7;
+	`)
 	if err != nil {
-		log.Printf("⚠️ Failed to add expo_push_token column: %v", err)
+		log.Printf("⚠️ Failed to update database schema: %v", err)
 	}
 
 	DB.SetMaxOpenConns(25)

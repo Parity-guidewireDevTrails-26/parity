@@ -13,6 +13,8 @@ type Policy struct {
 	Description    string          `json:"description"`
 	Exclusions     json.RawMessage `json:"exclusions"`
 	IsActive       bool            `json:"is_active"`
+	PayoutRate     float64         `json:"payout_rate"`
+	DurationDays   int             `json:"duration_days"`
 	CreatedAt      time.Time       `json:"created_at"`
 }
 
