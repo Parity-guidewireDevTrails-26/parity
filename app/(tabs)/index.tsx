@@ -76,7 +76,18 @@ export default function DashboardScreen() {
     }
   };
 
-  useEffect(() => { fetchDashboardData(); }, []);
+  useEffect(() => { 
+    // Initial data fetch
+    fetchDashboardData(); 
+    
+    // Safety timeout: If data has not loaded in 6 seconds (e.g. backend spin-up delay), 
+    // kill the loader so the screen doesn't stay grey/loading forever.
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 6000);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   // ── Supabase Realtime: live parametric event subscriber ──────────────────
   useEffect(() => {

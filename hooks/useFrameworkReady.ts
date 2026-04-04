@@ -8,6 +8,9 @@ declare global {
 
 export function useFrameworkReady() {
   useEffect(() => {
-    window.frameworkReady?.();
-  });
+    // Standard check to be safe in native environments
+    if (typeof window !== 'undefined' && (window as any).frameworkReady) {
+      (window as any).frameworkReady();
+    }
+  }, []);
 }
