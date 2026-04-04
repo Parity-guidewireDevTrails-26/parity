@@ -1,0 +1,11 @@
+node_modules/
+.expo/
+dist/
+web-build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+.DS_Store
+# NOTICE: We specifically DO NOT ignore .env files here so EAS cloud can bundle them!

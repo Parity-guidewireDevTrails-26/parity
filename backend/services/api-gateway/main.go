@@ -48,11 +48,17 @@ func main() {
 	claimServiceURL, _ := url.Parse("http://localhost:" + getEnv("CLAIM_SERVICE_PORT", "8083"))
 	notifyServiceURL, _ := url.Parse("http://localhost:" + getEnv("NOTIFICATION_SERVICE_PORT", "8084"))
 
+	router.Any("/api/v1/auth", reverseProxy(userServiceURL))
 	router.Any("/api/v1/auth/*path", reverseProxy(userServiceURL))
+	router.Any("/api/v1/users", reverseProxy(userServiceURL))
 	router.Any("/api/v1/users/*path", reverseProxy(userServiceURL))
+	router.Any("/api/v1/policies", reverseProxy(policyServiceURL))
 	router.Any("/api/v1/policies/*path", reverseProxy(policyServiceURL))
+	router.Any("/api/v1/claims", reverseProxy(claimServiceURL))
 	router.Any("/api/v1/claims/*path", reverseProxy(claimServiceURL))
+	router.Any("/api/v1/events", reverseProxy(claimServiceURL))
 	router.Any("/api/v1/events/*path", reverseProxy(claimServiceURL))
+	router.Any("/api/v1/notifications", reverseProxy(notifyServiceURL))
 	router.Any("/api/v1/notifications/*path", reverseProxy(notifyServiceURL))
 
 	router.GET("/health", func(c *gin.Context) {
