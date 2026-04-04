@@ -1,8 +1,14 @@
 <img width="998" height="497" alt="image" src="https://github.com/user-attachments/assets/9598a6eb-f518-4057-a49f-4913d3579e4c" />
 
-# Parity - AI-Parametric Insurance Platform
+# Parity - AI-Parametric Insurance Platform (Hackathon Ready)
 
-A production-ready insurance platform for India's gig economy delivery partners, featuring parametric triggers, fraud detection, and instant payouts.
+A production-ready insurance platform for India's gig economy delivery partners, featuring parametric triggers, fraud detection, and instant payouts. Built with Golang microservices, Python ML risk prediction, and a React Native frontend.
+
+**⚡ Hackathon Highlights:**
+- **Zero-Touch Claims:** PostGIS + Weather Oracles automate payouts.
+- **Dynamic Risk Pricing:** Integrated ML (`/risk/location`) evaluates live weather & traffic risk during user onboarding.
+- **Hardware Integrations:** React Native device fingerprinting prevents GPS spoofing.
+- **Live Over-The-Air Updates:** EAS deployment pipeline for rapid hackathon lifecycle iteration.
 
 
 ## What is Parity?
@@ -98,13 +104,14 @@ https://drive.google.com/file/d/1NhmiGG2r4uddoijGIw7DhH0LVWF7bvqo/view?usp=drive
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-%23F7931E.svg?style=for-the-badge&logo=scikit-learn&logoColor=white)
 ![React Native](https://img.shields.io/badge/react_native-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB)
 ![Expo](https://img.shields.io/badge/expo-1B1F23?style=for-the-badge&logo=expo&logoColor=white)
+![Render](https://img.shields.io/badge/Render-%2346E3B7.svg?style=for-the-badge&logo=render&logoColor=white)
 
 #### Why This Stack?
 - **Golang (Backend):** Chosen for its superior concurrency model (Goroutines). Essential for polling thousands of hyper-local weather/traffic APIs in parallel for real-time monitoring.
 - **PostgreSQL + PostGIS:** Provides industrial-grade ACID compliance for financial integrity, with PostGIS enabling the precise 3-5 km geospatial geo-fencing required for parametric triggers.
 - **Redis:** Acts as a high-speed volatile cache for "Active Session" tokens and live disruption flags, enabling sub-second "Zero-Touch" payout validation.
-- **XGBoost (Python):** Utilized for its high-performance gradient boosting capabilities, accurately predicting non-linear income loss by processing complex environmental and behavioral delivery metadata.
-- **React Native + Expo:** Ensures a high-performance, cross-platform mobile experience with rapid iteration cycles, critical for reaching gig workers on diverse hardware.
+- **XGBoost (Python):** Utilized for its high-performance gradient boosting capabilities, accurately predicting non-linear income loss.
+- **React Native + Expo EAS:** Ensures a high-performance cross-platform mobile experience. We leverage Expo Application Services (EAS) for instant Over-The-Air (OTA) production updates—critical for live hackathon demos without app store hurdles.
 
 ### Data Flow - Parametric Event Processing
 
@@ -297,9 +304,9 @@ To build a "Unicorn-tier" platform, the Intelligent Fraud Detection system acts 
 
 #### Layer 1: The Device & Identity Layer (Pre-Claim Validation)
 This layer ensures the integrity of the hardware and the person holding it before any claim is processed.
-- **Device Fingerprinting:** The system captures hardware UUIDs, OS versions, and screen resolutions to ensure a single user isn't running multiple accounts on one device.
-- **Integrity Checks:** The User Service automatically detects Rooted (Android) or Jailbroken (iOS) states. It specifically scans for "Background Emulators" or "Auto-Clicker" apps used to simulate delivery activity.
-- **Biometric Handshake:** For high-value payouts (Platinum tier), the app prompts for a Fingerprint or Facial ID check at the moment of the trigger to ensure the registered rider possesses the phone.
+- **Live Security Handshake:** During onboarding, the React Native app captures a `DeviceFingerprint` payload (hardware UUIDs, OS specs). This is securely bound to the rider's Postgres profile.
+- **Integrity Checks:** The User Service automatically detects Rooted (Android) or Jailbroken (iOS) states, shielding the platform from "Background Emulators" or "Auto-Clicker" location spoofers.
+- **Biometric Enforcement:** For high-value payouts (Platinum tier), the app prompts for a local biometric check at the moment of the trigger.
 
 #### Layer 2: The Geo-Spatial & Disruption Layer (Real-Time Validation)
 This layer cross-references the rider's physical movement against the parametric disruption data.
@@ -427,14 +434,20 @@ go run services/policy-service/main.go &
 go run services/claim-service/main.go &
 ```
 
-### 2. Frontend Setup
+### 2. Frontend Setup (Mobile App)
 
 ```bash
 # Install dependencies
 npm install
 
-# Start Expo development server
+# Option A: Start Expo development server (Fastest for testing)
 npm run dev
+
+# Option B: Build a standalone Android APK via EAS
+npx eas-cli build -p android --profile preview
+
+# Option C: Push Over-The-Air (OTA) updates to your existing build
+npx eas-cli update --branch preview --message "Hackathon patch update"
 ```
 
 ## API Standards
