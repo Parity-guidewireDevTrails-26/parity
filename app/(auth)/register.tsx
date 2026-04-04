@@ -182,9 +182,7 @@ export default function OnboardingScreen() {
     }
   };
 
-  const handleBuyNow = async () => {
-    if (!acceptedTnc) return Alert.alert('Please Accept', 'You must accept the Terms & Conditions.');
-    setLoading(true);
+  const ensureRegistered = async () => {
     try {
       await ApiService.register({
         phone_number: `+91${phone}`,
@@ -194,14 +192,40 @@ export default function OnboardingScreen() {
         password: '1234',
         device_fingerprint: fingerprint,
       });
+    } catch (e: any) {
+      if (e.message?.toLowerCase().includes('already registered')) {
+        await ApiService.login(`+91${phone}`, '1234');
+      } else {
+        throw e;
+      }
+    }
+  };
+
+  const handleBuyNow = async () => {
+    if (!acceptedTnc) return Alert.alert('Please Accept', 'You must accept the Terms & Conditions.');
+    setLoading(true);
+    try {
+      await ensureRegistered();
+      
       const pushToken = await getPushToken();
       if (pushToken) {
         await ApiService.updateProfile({ expo_push_token: pushToken });
       }
       
-      // Use ML-recommended plan or fall back to Gold
-      const planId = selectedPlanId || 'policy_02';
-      await ApiService.subscribeToPlan(planId);
+      // Fetch policies from backend to get the real UUIDs
+      const data = await ApiService.getPolicies();
+      
+      let planName = 'Gold';
+      if (selectedPlanId === 'policy_01') planName = 'Silver';
+      else if (selectedPlanId === 'policy_02') planName = 'Gold';
+      else if (selectedPlanId === 'policy_03') planName = 'Platinum';
+      
+      const actualPolicy = data.policies.find(p => p.name.toLowerCase() === planName.toLowerCase());
+      if (!actualPolicy) {
+        throw new Error(`Policy ${planName} not found in database.`);
+      }
+
+      await ApiService.subscribeToPlan(actualPolicy.id);
       router.replace('/(tabs)');
     } catch (e: any) {
       Alert.alert('Error', e.message);
@@ -213,14 +237,8 @@ export default function OnboardingScreen() {
   const handleSkip = async () => {
     setLoading(true);
     try {
-      await ApiService.register({
-        phone_number: `+91${phone}`,
-        name: fullName,
-        platform,
-        work_city: city,
-        password: '1234',
-        device_fingerprint: fingerprint,
-      });
+      await ensureRegistered();
+      
       const pushToken = await getPushToken();
       if (pushToken) {
         await ApiService.updateProfile({ expo_push_token: pushToken });
