@@ -5,13 +5,19 @@ import (
 	"time"
 )
 
+// Policy represents an insurance plan definition.
+// SECURITY & COMPLIANCE: All policies MUST explicitly deny coverage for:
+// 1. War (invasion, acts of foreign enemies)
+// 2. Pandemic (and related lockdowns)
+// 3. Terrorism (including cyber-terrorism)
+// 4. Nuclear (energy risks or radioactive contamination)
 type Policy struct {
 	ID             string          `json:"id"`
 	Name           string          `json:"name"`
 	WeeklyPremium  float64         `json:"weekly_premium"`
 	CoverageLimit  float64         `json:"coverage_limit"`
 	Description    string          `json:"description"`
-	Exclusions     json.RawMessage `json:"exclusions"`
+	Exclusions     json.RawMessage `json:"exclusions"` // Array of explicitly excluded events
 	IsActive       bool            `json:"is_active"`
 	PayoutRate     float64         `json:"payout_rate"`
 	DurationDays   int             `json:"duration_days"`

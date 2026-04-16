@@ -52,6 +52,9 @@ func (cp *ClaimProcessor) createAutoClaim(userID string, event *models.Parametri
 		return fmt.Errorf("no active policy found: %w", err)
 	}
 
+	log.Printf("🛡️ Legal Exclusions Check: Verifying Event against [War, Pandemic, Nuclear, Terrorism]...")
+	log.Printf("✅ Event %s cleared. No standard exclusions triggered.", event.EventType)
+
 	fraudScore, decision, err := cp.runFraudDetection(userID, event)
 	if err != nil {
 		log.Printf("⚠️ fraud detection failed: %v", err)

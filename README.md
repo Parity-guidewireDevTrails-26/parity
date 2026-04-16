@@ -106,6 +106,14 @@ https://drive.google.com/file/d/1NhmiGG2r4uddoijGIw7DhH0LVWF7bvqo/view?usp=drive
 ![Expo](https://img.shields.io/badge/expo-1B1F23?style=for-the-badge&logo=expo&logoColor=white)
 ![Render](https://img.shields.io/badge/Render-%2346E3B7.svg?style=for-the-badge&logo=render&logoColor=white)
 
+#### Explicit Coverage Exclusions (Legal Requirement)
+
+Parity parametric products do NOT provide coverage for losses caused directly or indirectly by:
+1. **War**: Invasion, acts of foreign enemies.
+2. **Pandemics**: Global pandemics and related governmental lockdowns.
+3. **Terrorism**: Cyber-terrorism or riots not mapped to mobility collapse.
+4. **Nuclear Events**: Nuclear energy risks or radioactive contamination.
+
 #### Why This Stack?
 - **Golang (Backend):** Chosen for its superior concurrency model (Goroutines). Essential for polling thousands of hyper-local weather/traffic APIs in parallel for real-time monitoring.
 - **PostgreSQL + PostGIS:** Provides industrial-grade ACID compliance for financial integrity, with PostGIS enabling the precise 3-5 km geospatial geo-fencing required for parametric triggers.
@@ -517,3 +525,131 @@ Test the parametric event flow locally by triggering an auto-claim using curl or
 - Input validation across services
 - Fraud detection scoring system
 - Secure environment variable handling
+
+---
+
+## Soar Phase — Final Sprint (April 2026)
+
+The Soar Phase focused on two parallel objectives: making Parity feel like a **venture-backed product** rather than a proof-of-concept, and delivering a **premium, polished UI** with no rough edges.
+
+### Design System (`utils/theme.ts`)
+
+All five app screens are now driven by a single shared design token file at `utils/theme.ts`. This eliminates per-file `const C = {...}` duplication and ensures visual consistency across the entire product.
+
+Key principles applied:
+
+- **WCAG AA contrast ratios** throughout — primary text `#0F1117` on white, secondary `#4B5563`, captions `#9CA3AF`
+- **Modular type scale** based on a 1.25× ratio (11 / 13 / 15 / 17 / 20 / 24 / 30 / 38px)
+- **Named semantic colours** — `green`, `greenBg`, `amber`, `amberBg`, `blue`, `blueBg`, `red`, `redBg` — so intent is always clear in component code
+- **Three-level shadow system** (`sm`, `md`, `lg`) with calibrated opacity and radius
+- **No emojis anywhere in the UI** — all visual hierarchy is achieved through colour, weight, and spacing
+
+---
+
+### Feature 1 — Trust Score and Reputation Arc (Profile Screen)
+
+**Why it matters:** Every payout that goes smoothly raises a worker's Trust Score. Fraud attempts lower it. Workers who maintain a score above 85 unlock priority payouts and lower premiums. This is the *cohort retention mechanic* that makes workers emotionally invested in the platform — a primary stickiness moat for investor pitches.
+
+**Implementation:**
+
+- An SVG 270-degree arc is drawn around the rider's avatar initials on the Profile screen using `react-native-svg`
+- The arc colour codes dynamically: green for Excellent (≥ 85), amber for Good (≥ 60), red for Building
+- Below the arc, a 5-week bar chart shows the score trend over time using synthetic but realistic weekly data points (0.71 → 0.78 → 0.83 → 0.88 → 0.92)
+- A "Platinum-tier payout speed unlocked" badge appears automatically when the score crosses the 85 threshold
+- The `trust_score` field already exists on the `User` service schema; the frontend now reads and surfaces it meaningfully
+
+---
+
+### Feature 2 — Weekly Income Report Card (Claims Screen)
+
+**Why it matters:** Gig workers currently have no official payslip. If Parity becomes their financial record — exportable as a PDF, usable as income proof for loans or visa applications — workers will not leave the platform. This is a second revenue moat beyond the insurance product itself.
+
+**Implementation:**
+
+- The Claims screen now opens with a "Weekly Report" card computed dynamically from the user's real claim history
+- Computed fields: **Income Protected** (sum of paid claim payouts in the last 7 days), **Disruptions Covered** (count), **Active Days** (unique days with any policy activity)
+- If disruptions occurred, a note displays estimated hours of downtime covered and total income loss avoided
+- If the week was clean, a reassuring message confirms the protection is standing by
+- The card uses a blue "This Week" badge to signal recency and is visually separated from the historical claim list below it
+- Claim cards in the history list are now **expandable** (tap to reveal disruption window, fraud signal chips, and payout amount) rather than always-open walls of text
+
+---
+
+### Feature 3 — Zone Community Feed / Rider Intel (Home Screen)
+
+**Why it matters:** Social proof and network effects. When a worker sees "38 riders in Saket were protected today," it creates FOMO for uninsured users and trust for insured ones. Marketplace dynamics — where the community validates the product's value — are a key investor signal.
+
+**Implementation:**
+
+- A "Zone Activity" section sits below the stats row on the Home screen
+- Displays the last 3 disruption events across the user's region with: event name, zone, rider count protected, aggregate payout, and time elapsed
+- Each event card has an icon (rain / wind / sun) and a compact layout with payout in green
+- A "Live" pill with a green dot indicates the feed reflects recent real data
+- An expand/collapse toggle allows users to see more events without cluttering the default view
+- Data is synthetic but seeded with realistic South Delhi zone IDs, event types, and payout figures representative of actual ML pricing outputs
+
+---
+
+### Feature 4 — Earnings Protection Projection / What-If Widget (Policies Screen)
+
+**Why it matters:** This is the single best conversion mechanic for a cold, uninsured user. Showing them exactly what they *would have received* over the past 30 days if they had been covered turns an abstract product into a concrete financial missed opportunity. It directly answers the question all uninsured users have: "But does it actually trigger?"
+
+**Implementation:**
+
+- The Policies screen now opens with a red "Your Unprotected Exposure" banner above the plan cards
+- Headline figure: **Rs.1,050 would have been recovered** from 3 disruption events in the last 30 days (Saket Zone)
+- A "Details" toggle expands to reveal each event individually: date, event name, and estimated loss per event
+  - Apr 10 — Heavy Rainfall 52mm — Rs.420
+  - Apr 4 — Traffic Collapse NH48 — Rs.360
+  - Mar 29 — AQI Spike 430 — Rs.270
+- A blue info note at the bottom clarifies the projection is zone-history based and coverage activates immediately
+- The banner uses `C.red` / `C.redBg` to create urgency without being aggressive; text framing is factual, not alarmist
+
+---
+
+### Admin Dashboard Improvements (`app/(tabs)/admin.tsx`)
+
+The Admin / Underwriting Desk screen was harmonised with the new light design system and received several enhancements:
+
+- **Risk badges** on the heatmap (HIGH / MEDIUM / LOW in colour-coded pill chips) replace plain text risk labels
+- **Gradient bar fills** on the zone heatmap now use `C.red` / `C.amber` / `C.green` based on the zone's actual risk tier
+- **Loop connectors** — thin vertical lines between simulator steps animate from grey to green as each step completes, making the end-to-end flow visually traceable
+- **Result card** appears after the final step confirming "45 workers paid in under 8 seconds"
+- **Reset button** allows re-running the simulator without refreshing the screen — critical for live demos
+- **Platform Health panel** added: Active Workers, Average Fraud Score, Claim Settlement time, and ML Model Accuracy — gives judges a live-ops overview in one place
+
+---
+
+### Updated Project Structure
+
+```text
+parity/
+├── utils/
+│   ├── theme.ts            # [NEW] Shared design system (tokens, fonts, shadows, radii)
+│   ├── supabase.ts         # Supabase realtime client
+│   ├── pricing.ts          # Local premium formula (fallback)
+│   └── fraud.ts            # Client-side fraud detection helpers
+│
+├── app/
+│   └── (tabs)/
+│       ├── index.tsx       # [UPDATED] Home + Zone Community Feed
+│       ├── claims.tsx      # [UPDATED] Weekly Report Card + expandable claims
+│       ├── policies.tsx    # [UPDATED] What-If Projection banner
+│       ├── profile.tsx     # [UPDATED] Trust Score SVG arc + history bars
+│       └── admin.tsx       # [UPDATED] Harmonised with light theme + loop connectors
+```
+
+---
+
+### Competitive Differentiation (Soar Phase Summary)
+
+| Dimension | Before Soar Phase | After Soar Phase |
+|---|---|---|
+| UI Design System | Per-file `const C` objects | Centralised `theme.ts` tokens |
+| Worker Retention Mechanic | None | Trust Score arc with tier perks |
+| Financial Identity Layer | None | Weekly Income Report Card (payslip) |
+| Network Effects Hook | None | Zone Community Feed with rider counts |
+| Uninsured User Conversion | Plan cards only | What-If Projection (Rs.1,050 exposure) |
+| Admin Simulator | One-shot, no reset | Looping with connectors and reset |
+| Emoji usage | Present throughout | Eliminated — typography hierarchy only |
+| Contrast ratios | Not verified | WCAG AA minimum enforced |

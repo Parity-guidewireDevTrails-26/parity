@@ -135,8 +135,8 @@ CREATE INDEX IF NOT EXISTS idx_claims_event ON claims(event_id);
 CREATE INDEX IF NOT EXISTS idx_zone_risk_zone ON zone_risk_scores(zone, calculated_at DESC);
 
 -- Insert Default Policy Plans
-INSERT INTO policies (name, weekly_premium, coverage_limit, description, is_active) VALUES
-('Silver', 45.00, 1500.00, 'Basic income protection for occasional disruptions', true),
-('Gold', 85.00, 3500.00, 'Comprehensive coverage for regular riders', true),
-('Platinum', 150.00, 7000.00, 'Premium protection with maximum coverage', true)
+INSERT INTO policies (name, weekly_premium, coverage_limit, description, exclusions, is_active) VALUES
+('Silver', 45.00, 1500.00, 'Basic income protection for occasional disruptions', '["War", "Pandemic", "Terrorism", "Nuclear"]', true),
+('Gold', 85.00, 3500.00, 'Comprehensive coverage for regular riders', '["War", "Pandemic", "Terrorism", "Nuclear"]', true),
+('Platinum', 150.00, 7000.00, 'Premium protection with maximum coverage', '["War", "Pandemic", "Terrorism", "Nuclear"]', true)
 ON CONFLICT DO NOTHING;

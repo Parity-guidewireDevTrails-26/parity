@@ -4,32 +4,60 @@ import {
   TouchableOpacity, RefreshControl, Animated, Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Shield, MapPin, Bell, TrendingUp, Zap, Check } from 'lucide-react-native';
+import {
+  Shield, MapPin, Bell, TrendingUp, Zap, Users, CloudRain, Wind, Sun,
+} from 'lucide-react-native';
 import { ApiService, User } from '@/services/api';
 import { supabase } from '@/utils/supabase';
+import { C, FONT, RADIUS, SHADOW } from '@/utils/theme';
 
-// Helper to check if Supabase is actually configured
-const isSupabaseConfigured = !!process.env.EXPO_PUBLIC_SUPABASE_URL && !!process.env.EXPO_PUBLIC_SUPABASE_KEY;
+const isSupabaseConfigured =
+  !!process.env.EXPO_PUBLIC_SUPABASE_URL && !!process.env.EXPO_PUBLIC_SUPABASE_KEY;
 
 const { width } = Dimensions.get('window');
-const RADAR_SIZE = 200;
+const RADAR_SIZE = 190;
 
-const MOCK_DISRUPTION = {
-  title: '⛈ Extreme rainfall (45mm) detected in Saket',
-  message: 'Your income protection has been automatically initiated.',
-  payout: 350,
+// ── FEATURE 3: Zone Community Feed (synthetic but realistic) ──────────────
+const ZONE_FEED = [
+  {
+    id: 'z1',
+    zone: 'Saket',
+    event: 'Heavy Rainfall — 47mm',
+    riders: 38,
+    payout: '₹13,300',
+    type: 'rain',
+    hoursAgo: 2,
+  },
+  {
+    id: 'z2',
+    zone: 'Malviya Nagar',
+    event: 'Traffic Collapse — NH48',
+    riders: 21,
+    payout: '₹5,880',
+    type: 'traffic',
+    hoursAgo: 5,
+  },
+  {
+    id: 'z3',
+    zone: 'Hauz Khas',
+    event: 'AQI Spike — 418',
+    riders: 14,
+    payout: '₹3,920',
+    type: 'pollution',
+    hoursAgo: 11,
+  },
+];
+
+const ZONE_ICON: Record<string, any> = {
+  rain:      CloudRain,
+  traffic:   Wind,
+  pollution: Sun,
 };
 
-// ── Design Tokens ─────────────────────────────────────────────
-const C = {
-  bgPrimary: '#F5F5F7',
-  bgCard:    '#FFFFFF',
-  txt1:      '#1C1C1E',   // headings
-  txt2:      '#6E6E73',   // labels
-  txt3:      '#AEAEB2',   // hints
-  green:     '#22C55E',   // active / success
-  amber:     '#F59E0B',   // payouts / progress
-  border:    '#E5E5EA',
+const MOCK_DISRUPTION = {
+  title: 'Extreme Rainfall (45mm) Detected in Saket',
+  message: 'Your income protection has been automatically initiated.',
+  payout: 350,
 };
 
 export default function DashboardScreen() {
@@ -40,24 +68,24 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [disruption, setDisruption] = useState<null | typeof MOCK_DISRUPTION>(null);
   const [payoutReady, setPayoutReady] = useState(false);
+  const [expandZoneFeed, setExpandZoneFeed] = useState(false);
 
-  // Radar pulse rings
-  const ring1 = useRef(new Animated.Value(0.7)).current;
-  const ring2 = useRef(new Animated.Value(0.5)).current;
-  const ring3 = useRef(new Animated.Value(0.3)).current;
+  const ring1 = useRef(new Animated.Value(0.6)).current;
+  const ring2 = useRef(new Animated.Value(0.35)).current;
+  const ring3 = useRef(new Animated.Value(0.15)).current;
 
   useEffect(() => {
-    const pulse = (val: Animated.Value, delay: number) =>
+    const pulse = (val: Animated.Value, delay: number, low: number) =>
       Animated.loop(
         Animated.sequence([
           Animated.delay(delay),
-          Animated.timing(val, { toValue: 1, duration: 2000, useNativeDriver: true }),
-          Animated.timing(val, { toValue: val === ring1 ? 0.7 : val === ring2 ? 0.5 : 0.3, duration: 2000, useNativeDriver: true }),
+          Animated.timing(val, { toValue: 1, duration: 2200, useNativeDriver: true }),
+          Animated.timing(val, { toValue: low, duration: 2200, useNativeDriver: true }),
         ])
       ).start();
-    pulse(ring1, 0);
-    pulse(ring2, 400);
-    pulse(ring3, 800);
+    pulse(ring1, 0, 0.6);
+    pulse(ring2, 500, 0.35);
+    pulse(ring3, 1000, 0.15);
   }, []);
 
   const fetchDashboardData = async () => {
@@ -76,38 +104,29 @@ export default function DashboardScreen() {
     }
   };
 
-  useEffect(() => { 
-    // Initial data fetch
-    fetchDashboardData(); 
-    
-    // Safety timeout: If data has not loaded in 6 seconds (e.g. backend spin-up delay), 
-    // kill the loader so the screen doesn't stay grey/loading forever.
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 6000);
-
+  useEffect(() => {
+    fetchDashboardData();
+    const timer = setTimeout(() => setLoading(false), 7000);
     return () => clearTimeout(timer);
   }, []);
 
-  // ── Supabase Realtime: live parametric event subscriber ──────────────────
   useEffect(() => {
     if (!user || !isSupabaseConfigured) return;
     const userZone = user.work_zone || 'DEL-SAKET-01';
-
     try {
       const channel = supabase
         .channel('disruption-alerts')
-        .on(
-          'postgres_changes',
+        .on('postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'parametric_events' },
           (payload: any) => {
             const e = payload.new;
             if (e.zone === userZone && e.severity > e.threshold && e.is_active) {
               const label =
-                e.event_type === 'HEAVY_RAIN' ? `\u26c8 Heavy Rainfall (${e.severity?.toFixed(0)}mm) in ${e.zone}` :
-                e.event_type === 'HEAT_WAVE' ? `\uD83C\uDF21\uFE0F Heat Wave (${e.severity?.toFixed(0)}\u00b0C) in ${e.zone}` :
-                e.event_type === 'MOBILITY_COLLAPSE' ? `\uD83D\uDE97 Traffic Collapse in ${e.zone}` :
-                `\uD83D\uDEA8 Disruption event in ${e.zone}`;
+                e.event_type === 'HEAVY_RAIN'
+                  ? `Heavy Rainfall (${e.severity?.toFixed(0)}mm) in ${e.zone}`
+                  : e.event_type === 'HEAT_WAVE'
+                  ? `Heat Wave (${e.severity?.toFixed(0)}C) in ${e.zone}`
+                  : `Disruption Event in ${e.zone}`;
               setDisruption({
                 title: label,
                 message: 'Your income protection has been automatically initiated.',
@@ -119,16 +138,15 @@ export default function DashboardScreen() {
           }
         )
         .subscribe();
-
       return () => { supabase.removeChannel(channel); };
     } catch (e) {
-      console.warn('Supabase Realtime subscription failed:', e);
+      console.warn('Supabase Realtime failed:', e);
     }
   }, [user]);
 
   const simulateDisruption = () => {
     if (!activePolicy) {
-      alert('You must purchase a plan first!');
+      alert('You must purchase a plan first.');
       return;
     }
     setDisruption(MOCK_DISRUPTION);
@@ -145,110 +163,121 @@ export default function DashboardScreen() {
     return (
       <View style={styles.loader}>
         <ActivityIndicator size="large" color={C.green} />
-        <Text style={styles.loaderText}>Loading your protection…</Text>
+        <Text style={styles.loaderText}>Loading your protection...</Text>
       </View>
     );
   }
+
+  const visibleFeed = expandZoneFeed ? ZONE_FEED : ZONE_FEED.slice(0, 2);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bgPrimary }}>
       <ScrollView
         style={styles.container}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchDashboardData(); }} tintColor={C.green} />}>
-
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => { setRefreshing(true); fetchDashboardData(); }}
+            tintColor={C.green}
+          />
+        }
+      >
         {/* ── Header ── */}
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Good morning</Text>
             <Text style={styles.name}>{user?.name ?? 'Rider'}</Text>
           </View>
-          <View style={styles.shieldBadge}>
-            <Shield size={22} color={activePolicy ? C.green : C.txt3} />
+          <View style={[styles.shieldBadge, { backgroundColor: activePolicy ? C.greenBg : C.bgCard }]}>
+            <Shield size={20} color={activePolicy ? C.green : C.txt3} />
           </View>
         </View>
 
         {/* ── Radar ── */}
         <View style={styles.radarSection}>
           <View style={styles.radarContainer}>
-            {/* Three concentric pulsing rings */}
             {[ring3, ring2, ring1].map((val, i) => (
               <Animated.View
                 key={i}
                 style={[
                   styles.radarRing,
                   {
-                    width: RADAR_SIZE - i * 40,
-                    height: RADAR_SIZE - i * 40,
-                    borderRadius: (RADAR_SIZE - i * 40) / 2,
+                    width: RADAR_SIZE - i * 44,
+                    height: RADAR_SIZE - i * 44,
+                    borderRadius: (RADAR_SIZE - i * 44) / 2,
                     opacity: val,
                   },
                 ]}
               />
             ))}
-            {/* Core circle */}
             <View style={styles.radarCore}>
-              <Shield size={32} color={C.green} />
+              <Shield size={28} color={C.green} />
             </View>
           </View>
           <Text style={styles.radarLabel}>Monitoring Active</Text>
           <View style={styles.zonePill}>
-            <MapPin size={12} color={C.txt3} />
+            <MapPin size={11} color={C.txt3} />
             <Text style={styles.zoneText}>{user?.work_zone ?? 'Set your zone in Profile'}</Text>
           </View>
         </View>
 
-        {/* ── Income Protection Card ── */}
+        {/* ── Earnings Protected Card ── */}
         {activePolicy ? (
           <View style={styles.incomeCard}>
             <View style={styles.incomeCardTop}>
               <View>
-                <Text style={styles.incomeLabel}>EARNINGS PROTECTED</Text>
-                <Text style={styles.incomeAmount}>₹{(activePolicy.coverage_limit ?? 0).toLocaleString()}</Text>
-                <Text style={styles.incomeMeta}>{(activePolicy.policy_name || 'Policy')} Plan · Active</Text>
+                <Text style={styles.sectionLabel}>EARNINGS PROTECTED</Text>
+                <Text style={styles.incomeAmount}>
+                  Rs.{(activePolicy.coverage_limit ?? 0).toLocaleString()}
+                </Text>
+                <Text style={styles.incomeMeta}>
+                  {activePolicy.policy_name || 'Policy'} Plan
+                </Text>
               </View>
-              <View style={[styles.activePill, { backgroundColor: C.green + '18' }]}>
-                <View style={[styles.activeDot, { backgroundColor: C.green }]} />
-                <Text style={[styles.activePillText, { color: C.green }]}>ON</Text>
+              <View style={styles.activePill}>
+                <View style={styles.activeDot} />
+                <Text style={styles.activePillText}>Active</Text>
               </View>
             </View>
 
             <View style={styles.incomeDivider} />
+
             <View style={styles.incomeMetrics}>
-              <View style={styles.metricItem}>
-                <Text style={styles.metricLabel}>MATCH RATE</Text>
-                <Text style={styles.metricValue}>{((activePolicy.payout_rate ?? 0.20) * 100).toFixed(0)}%</Text>
-              </View>
-              <View style={styles.metricDivider} />
-              <View style={styles.metricItem}>
-                <Text style={styles.metricLabel}>DURATION</Text>
-                <Text style={styles.metricValue}>{activePolicy.duration_days ?? 7} Days</Text>
-              </View>
-              <View style={styles.metricDivider} />
-              <View style={styles.metricItem}>
-                <Text style={styles.metricLabel}>WAIT TIME</Text>
-                <Text style={styles.metricValue}>Instant</Text>
-              </View>
+              {[
+                { label: 'MATCH RATE', value: `${((activePolicy.payout_rate ?? 0.20) * 100).toFixed(0)}%` },
+                { label: 'DURATION', value: `${activePolicy.duration_days ?? 7} Days` },
+                { label: 'PAYOUT', value: 'Instant' },
+              ].map((m, i, arr) => (
+                <View key={m.label} style={{ flexDirection: 'row', flex: 1 }}>
+                  <View style={styles.metricItem}>
+                    <Text style={styles.metricLabel}>{m.label}</Text>
+                    <Text style={styles.metricValue}>{m.value}</Text>
+                  </View>
+                  {i < arr.length - 1 && <View style={styles.metricDivider} />}
+                </View>
+              ))}
             </View>
 
-
-            {/* Weekly progress bar */}
-            <Text style={styles.progressLabel}>Weekly Cycle</Text>
+            <Text style={[styles.sectionLabel, { marginTop: 20, marginBottom: 8 }]}>WEEKLY CYCLE</Text>
             <View style={styles.progressTrack}>
               <View style={[styles.progressFill, { width: '65%' }]} />
             </View>
             <View style={styles.progressMeta}>
-              <Text style={styles.progressStart}>Mon</Text>
-              <Text style={styles.progressEnd}>Premium renews Sunday</Text>
+              <Text style={styles.progressTxt}>Mon</Text>
+              <Text style={styles.progressTxt}>Premium renews Sunday</Text>
             </View>
           </View>
         ) : (
           <View style={styles.noProtCard}>
-            <Shield size={40} color={C.txt3} />
+            <Shield size={36} color={C.txt3} />
             <Text style={styles.noProtTitle}>No Active Plan</Text>
             <Text style={styles.noProtSub}>Get covered from income loss today.</Text>
-            <TouchableOpacity style={styles.noProtBtn} onPress={() => router.push('/(tabs)/policies')}>
-              <Text style={styles.noProtBtnText}>View Plans →</Text>
+            <TouchableOpacity
+              style={styles.noProtBtn}
+              onPress={() => router.push('/(tabs)/policies')}
+            >
+              <Text style={styles.noProtBtnText}>View Plans</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -256,31 +285,79 @@ export default function DashboardScreen() {
         {/* ── Stats Row ── */}
         <View style={styles.statsRow}>
           {[
-            { icon: <TrendingUp size={18} color={C.amber} />, value: '₹0', label: 'Total Paid' },
-            { icon: <Shield size={18} color={C.green} />, value: '0', label: 'Protected Days' },
-            { icon: <Zap size={18} color={C.txt2} />, value: '0', label: 'Auto-Claims' },
+            { Icon: TrendingUp, value: 'Rs.0', label: 'Total Received', color: C.amber },
+            { Icon: Shield,     value: '0',    label: 'Protected Days', color: C.green },
+            { Icon: Zap,        value: '0',    label: 'Auto-Claims',    color: C.blue  },
           ].map(s => (
             <View key={s.label} style={styles.statChip}>
-              {s.icon}
+              <s.Icon size={16} color={s.color} />
               <Text style={styles.statValue}>{s.value}</Text>
               <Text style={styles.statLabel}>{s.label}</Text>
             </View>
           ))}
         </View>
 
+        {/* ── FEATURE 3: Zone Community Feed ── */}
+        <View style={styles.feedSection}>
+          <View style={styles.feedHeaderRow}>
+            <View>
+              <Text style={styles.feedTitle}>Zone Activity</Text>
+              <Text style={styles.feedSub}>
+                Recent disruptions in your region
+              </Text>
+            </View>
+            <View style={styles.livePill}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveText}>Live</Text>
+            </View>
+          </View>
+
+          {visibleFeed.map(item => {
+            const Icon = ZONE_ICON[item.type] ?? Zap;
+            return (
+              <View key={item.id} style={styles.feedCard}>
+                <View style={styles.feedIconWrap}>
+                  <Icon size={16} color={C.brand} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.feedEventTitle}>{item.event}</Text>
+                  <Text style={styles.feedZone}>{item.zone}</Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={styles.feedRiders}>
+                    <Users size={10} color={C.txt3} /> {item.riders} riders
+                  </Text>
+                  <Text style={styles.feedAmt}>{item.payout} paid</Text>
+                  <Text style={styles.feedTime}>{item.hoursAgo}h ago</Text>
+                </View>
+              </View>
+            );
+          })}
+
+          <TouchableOpacity
+            style={styles.feedToggle}
+            onPress={() => setExpandZoneFeed(v => !v)}
+          >
+            <Text style={styles.feedToggleText}>
+              {expandZoneFeed ? 'Show less' : 'View all zone activity'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {/* ── Simulate Disruption ── */}
-        <TouchableOpacity 
-          style={[styles.simulateBtn, !activePolicy && { opacity: 0.5 }]} 
-          onPress={simulateDisruption} 
-          activeOpacity={0.7}>
-          <Bell size={18} color={C.txt2} />
+        <TouchableOpacity
+          style={[styles.simulateBtn, !activePolicy && { opacity: 0.4 }]}
+          onPress={simulateDisruption}
+          activeOpacity={0.7}
+        >
+          <Bell size={16} color={C.txt2} />
           <Text style={styles.simulateBtnText}>Simulate Disruption Event</Text>
         </TouchableOpacity>
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: 48 }} />
       </ScrollView>
 
-      {/* ── Zero-Touch Disruption Alert (Apple-style banner) ── */}
+      {/* ── Disruption Alert Banner ── */}
       {disruption && (
         <View style={styles.alertBanner}>
           <View style={styles.alertAccent} />
@@ -291,25 +368,22 @@ export default function DashboardScreen() {
                 <Text style={styles.alertDismiss}>Dismiss</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.alertEvent}>{disruption.message}</Text>
+            <Text style={styles.alertMsg}>{disruption.message}</Text>
 
             {payoutReady ? (
-              <View style={[styles.alertPayoutRow, { backgroundColor: C.green + '15', padding: 12, borderRadius: 12, marginTop: 6 }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <View style={{ backgroundColor: C.green, borderRadius: 10, padding: 4 }}>
-                    <Check size={16} color="#FFF" />
-                  </View>
-                  <View>
-                    <Text style={styles.alertPayoutLabel}>Zero-Touch Verified</Text>
-                    <Text style={{ fontSize: 12, color: C.green, fontWeight: '700' }}>Sent automatically to UPI</Text>
-                  </View>
+              <View style={styles.alertPayoutBox}>
+                <View>
+                  <Text style={styles.alertPayoutLabel}>Zero-Touch Verified</Text>
+                  <Text style={styles.alertPayoutSub}>Sent automatically via UPI</Text>
                 </View>
-                <Text style={[styles.alertPayoutAmount, { color: C.green }]}>₹{disruption.payout}</Text>
+                <Text style={styles.alertPayoutAmt}>Rs.{disruption.payout}</Text>
               </View>
             ) : (
-              <View style={[styles.alertProcessingRow, { marginTop: 6 }]}>
+              <View style={styles.alertProcessingRow}>
                 <ActivityIndicator size="small" color={C.green} />
-                <Text style={styles.alertProcessingText}>Verifying device location & fraud signals…</Text>
+                <Text style={styles.alertProcessingText}>
+                  Verifying device location and fraud signals...
+                </Text>
               </View>
             )}
           </View>
@@ -321,109 +395,198 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bgPrimary },
-  loader: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bgPrimary, gap: 10 },
-  loaderText: { color: C.txt2, fontSize: 14 },
+  loader: {
+    flex: 1, justifyContent: 'center', alignItems: 'center',
+    backgroundColor: C.bgPrimary, gap: 12,
+  },
+  loaderText: { color: C.txt2, fontSize: FONT.sm, fontWeight: FONT.medium },
 
   // Header
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 24, paddingTop: 64, paddingBottom: 8,
   },
-  greeting: { fontSize: 13, color: C.txt2, marginBottom: 2 },
-  name: { fontSize: 26, fontWeight: '700', color: C.txt1 },
+  greeting: { fontSize: FONT.sm, color: C.txt3, fontWeight: FONT.medium, marginBottom: 2 },
+  name: { fontSize: FONT.xl, fontWeight: FONT.heavy, color: C.txt1, letterSpacing: FONT.tight },
   shieldBadge: {
-    width: 46, height: 46, borderRadius: 23,
-    backgroundColor: C.bgCard, justifyContent: 'center', alignItems: 'center',
-    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+    width: 44, height: 44, borderRadius: RADIUS.full,
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: C.border,
+    ...SHADOW.sm,
   },
 
   // Radar
-  radarSection: { alignItems: 'center', paddingVertical: 32 },
+  radarSection: { alignItems: 'center', paddingVertical: 28 },
   radarContainer: { width: RADAR_SIZE, height: RADAR_SIZE, alignItems: 'center', justifyContent: 'center' },
   radarRing: {
-    position: 'absolute', borderWidth: 1, borderColor: C.green,
-    backgroundColor: C.green + '08',
+    position: 'absolute', borderWidth: 1.5, borderColor: C.green,
+    backgroundColor: C.greenBg,
   },
   radarCore: {
-    width: 72, height: 72, borderRadius: 36,
+    width: 68, height: 68, borderRadius: RADIUS.full,
     backgroundColor: C.bgCard, justifyContent: 'center', alignItems: 'center',
-    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 3 }, elevation: 4,
+    borderWidth: 1, borderColor: C.border,
+    ...SHADOW.md,
   },
-  radarLabel: { fontSize: 14, fontWeight: '600', color: C.txt2, marginTop: 16, marginBottom: 8 },
+  radarLabel: {
+    fontSize: FONT.sm, fontWeight: FONT.semibold, color: C.txt2,
+    marginTop: 18, marginBottom: 6, letterSpacing: FONT.normal,
+  },
   zonePill: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  zoneText: { fontSize: 12, color: C.txt3 },
+  zoneText: { fontSize: FONT.xs, color: C.txt3 },
 
-  // Income Card
-  incomeCard: {
-    backgroundColor: C.bgCard, marginHorizontal: 20, borderRadius: 20, padding: 22, marginBottom: 14,
-    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 3,
+  // Section label
+  sectionLabel: {
+    fontSize: FONT.xs, fontWeight: FONT.bold, color: C.txt3,
+    letterSpacing: FONT.wider, textTransform: 'uppercase',
   },
-  incomeCardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
-  incomeLabel: { fontSize: 11, fontWeight: '700', color: C.txt3, letterSpacing: 1, marginBottom: 6 },
-  incomeAmount: { fontSize: 40, fontWeight: '800', color: C.txt1 },
-  incomeMeta: { fontSize: 13, color: C.txt2, marginTop: 4 },
-  activePill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
-  activeDot: { width: 7, height: 7, borderRadius: 4 },
-  activePillText: { fontSize: 11, fontWeight: '800' },
-  progressLabel: { fontSize: 12, color: C.txt3, marginBottom: 8 },
-  progressTrack: { height: 5, backgroundColor: C.border, borderRadius: 3, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: C.amber, borderRadius: 3 },
-  progressMeta: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-  progressStart: { fontSize: 11, color: C.txt3 },
-  progressEnd: { fontSize: 11, color: C.txt3 },
+
+  // Income card
+  incomeCard: {
+    backgroundColor: C.bgCard, marginHorizontal: 20, borderRadius: RADIUS.xl,
+    padding: 22, marginBottom: 14, borderWidth: 1, borderColor: C.border,
+    ...SHADOW.md,
+  },
+  incomeCardTop: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'flex-start', marginBottom: 4,
+  },
+  incomeAmount: {
+    fontSize: FONT.hero, fontWeight: FONT.heavy, color: C.txt1,
+    letterSpacing: FONT.tight, marginTop: 4, marginBottom: 2,
+  },
+  incomeMeta: { fontSize: FONT.sm, color: C.txt3, marginTop: 2 },
+  activePill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: C.greenBg, paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: RADIUS.full,
+  },
+  activeDot: {
+    width: 6, height: 6, borderRadius: 3, backgroundColor: C.green,
+  },
+  activePillText: { fontSize: FONT.xs, fontWeight: FONT.bold, color: C.green },
+  incomeDivider: { height: 1, backgroundColor: C.border, marginVertical: 18 },
+  incomeMetrics: { flexDirection: 'row', alignItems: 'center' },
+  metricItem: { flex: 1, alignItems: 'center' },
+  metricLabel: {
+    fontSize: FONT.xs, color: C.txt3, fontWeight: FONT.bold,
+    letterSpacing: FONT.wide, textTransform: 'uppercase', marginBottom: 4,
+  },
+  metricValue: { fontSize: FONT.md, fontWeight: FONT.heavy, color: C.txt1 },
+  metricDivider: { width: 1, height: 28, backgroundColor: C.border },
+  progressTrack: {
+    height: 4, backgroundColor: C.bgSubtle, borderRadius: 2,
+    overflow: 'hidden', borderWidth: 1, borderColor: C.border,
+  },
+  progressFill: { height: '100%', backgroundColor: C.amber, borderRadius: 2 },
+  progressMeta: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 7 },
+  progressTxt: { fontSize: FONT.xs, color: C.txt3 },
 
   // No protection
   noProtCard: {
-    backgroundColor: C.bgCard, marginHorizontal: 20, borderRadius: 20, padding: 32,
-    alignItems: 'center', marginBottom: 14,
-    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 3,
+    backgroundColor: C.bgCard, marginHorizontal: 20, borderRadius: RADIUS.xl,
+    padding: 32, alignItems: 'center', marginBottom: 14,
+    borderWidth: 1, borderColor: C.border, ...SHADOW.sm,
   },
-  noProtTitle: { fontSize: 18, fontWeight: '700', color: C.txt1, marginTop: 14, marginBottom: 6 },
-  noProtSub: { fontSize: 13, color: C.txt2, textAlign: 'center', marginBottom: 20 },
-  noProtBtn: { backgroundColor: C.txt1, borderRadius: 12, paddingHorizontal: 28, paddingVertical: 12 },
-  noProtBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  noProtTitle: {
+    fontSize: FONT.md, fontWeight: FONT.bold, color: C.txt1, marginTop: 16, marginBottom: 6,
+  },
+  noProtSub: { fontSize: FONT.sm, color: C.txt2, textAlign: 'center', marginBottom: 20 },
+  noProtBtn: {
+    backgroundColor: C.brand, borderRadius: RADIUS.md,
+    paddingHorizontal: 28, paddingVertical: 12,
+  },
+  noProtBtnText: { color: '#fff', fontWeight: FONT.bold, fontSize: FONT.sm },
 
-  // Stats
-  statsRow: { flexDirection: 'row', marginHorizontal: 20, gap: 10, marginBottom: 14 },
-  statChip: {
-    flex: 1, backgroundColor: C.bgCard, borderRadius: 16, padding: 14, alignItems: 'center', gap: 5,
-    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1,
+  // Stats row
+  statsRow: {
+    flexDirection: 'row', marginHorizontal: 20, gap: 10, marginBottom: 20,
   },
-  statValue: { fontSize: 18, fontWeight: '700', color: C.txt1 },
-  statLabel: { fontSize: 10, color: C.txt3, fontWeight: '600', textAlign: 'center' },
+  statChip: {
+    flex: 1, backgroundColor: C.bgCard, borderRadius: RADIUS.lg,
+    padding: 14, alignItems: 'center', gap: 5,
+    borderWidth: 1, borderColor: C.border, ...SHADOW.sm,
+  },
+  statValue: { fontSize: FONT.md, fontWeight: FONT.heavy, color: C.txt1 },
+  statLabel: {
+    fontSize: 10, color: C.txt3, fontWeight: FONT.semibold,
+    textAlign: 'center', letterSpacing: 0.3,
+  },
+
+  // FEATURE 3 — Zone Feed
+  feedSection: {
+    marginHorizontal: 20, marginBottom: 20,
+    backgroundColor: C.bgCard, borderRadius: RADIUS.xl,
+    padding: 20, borderWidth: 1, borderColor: C.border, ...SHADOW.md,
+  },
+  feedHeaderRow: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'flex-start', marginBottom: 16,
+  },
+  feedTitle: {
+    fontSize: FONT.base, fontWeight: FONT.bold, color: C.txt1, marginBottom: 2,
+  },
+  feedSub: { fontSize: FONT.xs, color: C.txt3 },
+  livePill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: C.greenBg, paddingHorizontal: 9, paddingVertical: 4,
+    borderRadius: RADIUS.full,
+  },
+  liveDot: {
+    width: 5, height: 5, borderRadius: 3, backgroundColor: C.green,
+  },
+  liveText: { fontSize: FONT.xs, color: C.green, fontWeight: FONT.bold },
+  feedCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 12,
+    borderTopWidth: 1, borderTopColor: C.border,
+  },
+  feedIconWrap: {
+    width: 34, height: 34, borderRadius: RADIUS.md,
+    backgroundColor: C.bgSubtle, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: C.border,
+  },
+  feedEventTitle: { fontSize: FONT.sm, fontWeight: FONT.semibold, color: C.txt1, marginBottom: 2 },
+  feedZone: { fontSize: FONT.xs, color: C.txt3 },
+  feedRiders: { fontSize: FONT.xs, color: C.txt3, marginBottom: 2 },
+  feedAmt: { fontSize: FONT.sm, fontWeight: FONT.bold, color: C.green },
+  feedTime: { fontSize: FONT.xs, color: C.txt3, marginTop: 2 },
+  feedToggle: { paddingTop: 12, alignItems: 'center' },
+  feedToggleText: {
+    fontSize: FONT.sm, color: C.blue, fontWeight: FONT.semibold,
+  },
 
   // Simulate
   simulateBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    marginHorizontal: 20, paddingVertical: 16, borderRadius: 14,
-    backgroundColor: C.bgCard, borderWidth: 1, borderColor: C.border,
+    marginHorizontal: 20, paddingVertical: 15, borderRadius: RADIUS.lg,
+    backgroundColor: C.bgCard, borderWidth: 1, borderColor: C.border, ...SHADOW.sm,
   },
-  simulateBtnText: { color: C.txt2, fontSize: 14, fontWeight: '600' },
+  simulateBtnText: { color: C.txt2, fontSize: FONT.sm, fontWeight: FONT.semibold },
 
-  // New Income Card Styles
-  incomeDivider: { height: 1, backgroundColor: C.border, marginVertical: 18 },
-  incomeMetrics: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  metricItem: { flex: 1, alignItems: 'center' },
-  metricLabel: { fontSize: 10, color: C.txt3, fontWeight: '700', marginBottom: 4 },
-  metricValue: { fontSize: 16, fontWeight: '700', color: C.txt1 },
-  metricDivider: { width: 1, height: 24, backgroundColor: C.border },
-
-
-  // Alert banner — Apple-style, anchored at bottom
+  // Alert Banner
   alertBanner: {
-    position: 'absolute', bottom: 90, left: 20, right: 20,
-    backgroundColor: C.bgCard, borderRadius: 18, flexDirection: 'row', overflow: 'hidden',
-    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 24, shadowOffset: { width: 0, height: 8 }, elevation: 10,
+    position: 'absolute', bottom: 92, left: 16, right: 16,
+    backgroundColor: C.bgCard, borderRadius: RADIUS.xl,
+    flexDirection: 'row', overflow: 'hidden',
+    borderWidth: 1, borderColor: C.border, ...SHADOW.lg,
   },
-  alertAccent: { width: 5, backgroundColor: C.green },
-  alertBody: { flex: 1, padding: 18 },
-  alertTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  alertTitle: { fontSize: 15, fontWeight: '700', color: C.txt1 },
-  alertDismiss: { fontSize: 13, color: C.txt2 },
-  alertEvent: { fontSize: 13, color: C.txt2, marginBottom: 14 },
-  alertPayoutRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  alertPayoutLabel: { fontSize: 14, fontWeight: '600', color: C.txt1 },
-  alertPayoutAmount: { fontSize: 26, fontWeight: '800', color: C.amber },
+  alertAccent: { width: 4, backgroundColor: C.green },
+  alertBody: { flex: 1, padding: 16 },
+  alertTopRow: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: 4,
+  },
+  alertTitle: { fontSize: FONT.sm, fontWeight: FONT.bold, color: C.txt1, flex: 1, paddingRight: 8 },
+  alertDismiss: { fontSize: FONT.sm, color: C.txt3 },
+  alertMsg: { fontSize: FONT.xs, color: C.txt2, marginBottom: 12 },
+  alertPayoutBox: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: C.greenBg, borderRadius: RADIUS.md, padding: 12,
+  },
+  alertPayoutLabel: { fontSize: FONT.sm, fontWeight: FONT.bold, color: C.txt1, marginBottom: 2 },
+  alertPayoutSub: { fontSize: FONT.xs, color: C.green },
+  alertPayoutAmt: { fontSize: FONT.xl, fontWeight: FONT.heavy, color: C.green },
   alertProcessingRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  alertProcessingText: { fontSize: 13, color: C.txt2 },
+  alertProcessingText: { fontSize: FONT.xs, color: C.txt2, flex: 1 },
 });
