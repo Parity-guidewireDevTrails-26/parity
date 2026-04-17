@@ -6,7 +6,7 @@
 
 ### *Zero-touch income protection. No claims. No paperwork. Just payouts.*
 
-[![Pitch Deck](https://img.shields.io/badge/📊_Pitch_Deck-View_Slides-4285F4?style=for-the-badge&logo=google-drive&logoColor=white)](https://drive.google.com/file/d/YOUR_PITCH_DECK_ID/view)
+[![Pitch Deck](https://img.shields.io/badge/📊_Pitch_Deck-View_Slides-4285F4?style=for-the-badge&logo=google-drive&logoColor=white)](https://drive.google.com/file/d/1NCe8_LanQRglZ4G5Qepz-aFmcJcB-z96/view?usp=drivesdk)
 [![Demo Video](https://img.shields.io/badge/🎬_Demo_Video-Watch_Now-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://drive.google.com/file/d/1NhmiGG2r4uddoijGIw7DhH0LVWF7bvqo/view?usp=drivesdk)
 [![APK Download](https://img.shields.io/badge/📱_Android_APK-Download-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://expo.dev/accounts/elyashium/projects/parity/builds/24894826-01af-4c8e-af3a-9a452056ad51)
 [![Backend Status](https://img.shields.io/badge/Backend-Live_on_Render-46E3B7?style=for-the-badge&logo=render&logoColor=white)](https://parity-5boj.onrender.com/health)
@@ -100,6 +100,10 @@ Watch the zero-touch execution in action:
 https://drive.google.com/file/d/1NhmiGG2r4uddoijGIw7DhH0LVWF7bvqo/view?usp=drivesdk
 
 *Simulation: Heavy rainfall detected in Saket. Raj receives an instant credit notification without opening the app.*
+
+## Pitch Deck 
+
+https://drive.google.com/file/d/1NCe8_LanQRglZ4G5Qepz-aFmcJcB-z96/view?usp=drivesdk
 
 ## Screenshots
 
