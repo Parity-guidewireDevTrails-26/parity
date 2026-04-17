@@ -13,7 +13,6 @@
 
 </div>
 
-
 ---
 
 # Parity - AI-Parametric Insurance Platform (Hackathon Ready)
