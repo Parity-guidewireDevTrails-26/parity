@@ -11,6 +11,9 @@ import { ApiService, User } from '@/services/api';
 import { supabase } from '@/utils/supabase';
 import { C, FONT, RADIUS, SHADOW } from '@/utils/theme';
 
+// Supabase credentials are now configured — Realtime will connect.
+// Note: Realtime only fires for inserts into Supabase's own DB.
+// Use "Simulate Disruption" button for the hackathon demo flow.
 const isSupabaseConfigured =
   !!process.env.EXPO_PUBLIC_SUPABASE_URL && !!process.env.EXPO_PUBLIC_SUPABASE_KEY;
 

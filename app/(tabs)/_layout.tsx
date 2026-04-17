@@ -56,6 +56,7 @@ export default function TabLayout() {
         name="admin"
         options={{
           title: 'Admin',
+          href: null, // Hidden from tab bar — access via direct route only
           tabBarIcon: ({ size, color }) => <Shield size={size} color={color} />,
         }}
       />

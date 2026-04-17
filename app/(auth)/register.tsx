@@ -208,21 +208,33 @@ export default function OnboardingScreen() {
       await ensureRegistered();
       
       const pushToken = await getPushToken();
-      if (pushToken) {
-        await ApiService.updateProfile({ expo_push_token: pushToken });
-      }
+      const zoneMap: Record<string, string> = {
+        'delhi': 'DEL-SAKET-01', 'new delhi': 'DEL-SAKET-01',
+        'mumbai': 'MUM-ANDHERI-01', 'bangalore': 'BLR-KORAMANGALA-01',
+        'bengaluru': 'BLR-KORAMANGALA-01', 'pune': 'PUN-KOTHRUD-01',
+        'hyderabad': 'HYD-BANJARA-01', 'chennai': 'CHE-ADYAR-01',
+      };
+      const zone = zoneMap[city.toLowerCase()] ?? `${city.toUpperCase().slice(0,3)}-ZONE-01`;
+      await ApiService.updateProfile({
+        work_zone: zone,
+        ...(pushToken ? { expo_push_token: pushToken } : {}),
+      });
       
       // Fetch policies from backend to get the real UUIDs
       const data = await ApiService.getPolicies();
       
+      // Default to Gold if user hasn't selected a plan (safe fallback)
       let planName = 'Gold';
       if (selectedPlanId === 'policy_01') planName = 'Silver';
-      else if (selectedPlanId === 'policy_02') planName = 'Gold';
       else if (selectedPlanId === 'policy_03') planName = 'Platinum';
+      // policy_02 or empty both map to Gold
       
-      const actualPolicy = data.policies.find(p => p.name.toLowerCase() === planName.toLowerCase());
+      const actualPolicy = data.policies.find(
+        p => p.name.toLowerCase() === planName.toLowerCase()
+      ) ?? data.policies[0]; // fallback to first available policy
+      
       if (!actualPolicy) {
-        throw new Error(`Policy ${planName} not found in database.`);
+        throw new Error('No policies found in database. Contact support.');
       }
 
       await ApiService.subscribeToPlan(actualPolicy.id);
@@ -239,10 +251,19 @@ export default function OnboardingScreen() {
     try {
       await ensureRegistered();
       
+      // Auto-assign work_zone from city so Dashboard shows a real zone
+      const zoneMap: Record<string, string> = {
+        'delhi': 'DEL-SAKET-01', 'new delhi': 'DEL-SAKET-01',
+        'mumbai': 'MUM-ANDHERI-01', 'bangalore': 'BLR-KORAMANGALA-01',
+        'bengaluru': 'BLR-KORAMANGALA-01', 'pune': 'PUN-KOTHRUD-01',
+        'hyderabad': 'HYD-BANJARA-01', 'chennai': 'CHE-ADYAR-01',
+      };
+      const zone = zoneMap[city.toLowerCase()] ?? `${city.toUpperCase().slice(0,3)}-ZONE-01`;
       const pushToken = await getPushToken();
-      if (pushToken) {
-        await ApiService.updateProfile({ expo_push_token: pushToken });
-      }
+      await ApiService.updateProfile({
+        work_zone: zone,
+        ...(pushToken ? { expo_push_token: pushToken } : {}),
+      });
       router.replace('/(tabs)');
     } catch (e: any) {
       Alert.alert('Error', e.message);

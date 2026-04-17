@@ -1,5 +1,20 @@
 <img width="998" height="497" alt="image" src="https://github.com/user-attachments/assets/9598a6eb-f518-4057-a49f-4913d3579e4c" />
 
+<div align="center">
+
+# Parity — AI-Parametric Insurance for India's Gig Economy
+
+### *Zero-touch income protection. No claims. No paperwork. Just payouts.*
+
+[![Pitch Deck](https://img.shields.io/badge/📊_Pitch_Deck-View_Slides-4285F4?style=for-the-badge&logo=google-drive&logoColor=white)](https://drive.google.com/file/d/YOUR_PITCH_DECK_ID/view)
+[![Demo Video](https://img.shields.io/badge/🎬_Demo_Video-Watch_Now-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://drive.google.com/file/d/1NhmiGG2r4uddoijGIw7DhH0LVWF7bvqo/view?usp=drivesdk)
+[![APK Download](https://img.shields.io/badge/📱_Android_APK-Download-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://expo.dev/accounts/elyashium/projects/parity/builds/24894826-01af-4c8e-af3a-9a452056ad51)
+[![Backend Status](https://img.shields.io/badge/Backend-Live_on_Render-46E3B7?style=for-the-badge&logo=render&logoColor=white)](https://parity-5boj.onrender.com/health)
+
+</div>
+
+---
+
 # Parity - AI-Parametric Insurance Platform (Hackathon Ready)
 
 A production-ready insurance platform for India's gig economy delivery partners, featuring parametric triggers, fraud detection, and instant payouts. Built with Golang microservices, Python ML risk prediction, and a React Native frontend.
@@ -9,6 +24,7 @@ A production-ready insurance platform for India's gig economy delivery partners,
 - **Dynamic Risk Pricing:** Integrated ML (`/risk/location`) evaluates live weather & traffic risk during user onboarding.
 - **Hardware Integrations:** React Native device fingerprinting prevents GPS spoofing.
 - **Live Over-The-Air Updates:** EAS deployment pipeline for rapid hackathon lifecycle iteration.
+
 
 
 ## What is Parity?
