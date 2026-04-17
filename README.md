@@ -19,6 +19,7 @@
 
 A production-ready insurance platform for India's gig economy delivery partners, featuring parametric triggers, fraud detection, and instant payouts. Built with Golang microservices, Python ML risk prediction, and a React Native frontend.
 
+
 **⚡ Hackathon Highlights:**
 - **Zero-Touch Claims:** PostGIS + Weather Oracles automate payouts.
 - **Dynamic Risk Pricing:** Integrated ML (`/risk/location`) evaluates live weather & traffic risk during user onboarding.
